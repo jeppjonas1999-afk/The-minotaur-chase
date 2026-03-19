@@ -2,190 +2,185 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>CSS Spill - Korridoren</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Labyrint 2D</title>
     <style>
-        /* --- GRUNNLEGGENDE STIL --- */
+        :root {
+            /* Her definerer vi skalaen (Nivå 3 = 750px i denne skalaen) */
+            --map-size: 750px; 
+            --grid-cells: 50; /* Antall ruter i bredden */
+            --cell-size: calc(var(--map-size) / var(--grid-cells));
+        }
+
         body {
             margin: 0;
-            font-family: 'Courier New', Courier, monospace;
-            background: #111;
+            background: #000;
             color: white;
+            font-family: sans-serif;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             height: 100vh;
             overflow: hidden;
         }
 
-        /* --- LOGIKK (SKJULTE INPUTS) --- */
-        #start-game, #interact-trigger, .ui-trigger {
-            display: none;
-        }
+        /* LOBBY LOGIKK */
+        #game-trigger, #interact-trigger { display: none; }
 
-        /* --- LOBBY --- */
         #lobby {
-            text-align: center;
-            background: #222;
-            padding: 40px;
-            border: 3px solid #444;
-            z-index: 10;
-        }
-
-        .setting-group {
-            margin: 20px 0;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        /* Skala 1-5 knapper */
-        .scale-box {
-            width: 30px;
-            height: 30px;
-            background: #444;
-            display: inline-block;
-            line-height: 30px;
-            cursor: pointer;
-            border: 1px solid #666;
-        }
-
-        .ui-trigger:checked + .scale-box {
-            background: #00ff00;
-            color: black;
-        }
-
-        .start-btn {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 15px 30px;
-            background: #aa0000;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        /* --- SPILLVERDEN --- */
-        #game-world {
             position: absolute;
-            top: 0;
-            left: 0;
+            z-index: 100;
+            background: #222;
+            padding: 20px;
+            border: 2px solid #555;
+            text-align: center;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* NÅR SPILLET STARTER */
+        #game-trigger:checked ~ #lobby { display: none; }
+        #game-trigger:checked ~ #game-viewport { display: block; }
+
+        /* VIEWPORT - Dette er "kameraet" ditt */
+        #game-viewport {
+            display: none;
             width: 100vw;
             height: 100vh;
-            background: #050505;
-            display: none; /* Skjult til spillet starter */
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            overflow: auto; /* Gjør at man må lete/scrolle for å se kartet */
+            position: relative;
+            cursor: crosshair;
         }
 
-        /* Korridor-visning */
-        .corridor {
-            width: 100%;
-            height: 80%;
-            background: linear-gradient(to bottom, #111 0%, #333 50%, #111 100%);
+        /* LABYRINT-KARTET */
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--grid-cells), var(--cell-size));
+            grid-template-rows: repeat(var(--grid-cells), var(--cell-size));
+            width: var(--map-size);
+            height: var(--map-size);
+            background: #111;
+            /* Plasserer spilleren i midten ved start */
+            margin: 50vh 50vw; 
+        }
+
+        /* VEGGER (Vi bruker mønster-gjentakelse for å simulere labyrint uten JS) */
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            box-sizing: border-box;
+            border: 0.1px solid #222;
+        }
+
+        /* Dette simulerer en labyrint ved å fargelegge tilfeldige ruter */
+        .cell:nth-child(3n+1), .cell:nth-child(7n) {
+            background: #333; /* Vegg */
+        }
+
+        /* DET TOMME 10x10 ROMMET I MIDTEN */
+        /* Vi bruker CSS "Grid Area" for å tvinge midten til å være tom */
+        .center-room {
+            grid-column: 20 / 30; /* Ca midten av 50 ruter */
+            grid-row: 20 / 30;
+            background: #444 !important;
+            border: 2px solid #00ff00;
+            z-index: 2;
             display: flex;
             justify-content: center;
             align-items: center;
             position: relative;
         }
 
-        /* Døren bak deg */
+        /* DØR BAK DEG */
         .door {
-            width: 120px;
-            height: 200px;
-            background: #3d2b1f;
-            border: 4px solid #000;
-            position: relative;
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            width: 30px;
+            height: 10px;
+            background: brown;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
-        /* Interaksjonsknapp (E / Mobil) */
-        .interact-label {
-            position: absolute;
-            bottom: 40px;
+        /* INTERAKSJONSKNAPP (E / Mobil) */
+        .interact-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
             background: orange;
             color: black;
-            padding: 15px 25px;
-            border-radius: 50px;
+            padding: 20px;
+            border-radius: 50%;
             font-weight: bold;
             cursor: pointer;
-            display: block;
+            z-index: 200;
         }
 
-        /* Tekstboble */
-        #message {
-            position: absolute;
+        /* DIALOGBOBLE */
+        .dialog {
+            position: fixed;
             bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             background: rgba(0,0,0,0.9);
-            border: 2px solid white;
             padding: 20px;
-            width: 80%;
-            text-align: center;
-            display: none; /* Skjult til man trykker */
-        }
-
-        /* --- CSS GAMEPLAY LOGIKK --- */
-
-        /* 1. Vis spillet når start-knappen trykkes */
-        #start-game:checked ~ #game-world {
-            display: flex;
-        }
-        #start-game:checked ~ #lobby {
+            border: 2px solid white;
             display: none;
+            z-index: 300;
         }
 
-        /* 2. Vis tekstboble når man "interagerer" */
-        #interact-trigger:checked ~ #game-world #message {
-            display: block;
+        #interact-trigger:checked ~ .dialog { display: block; }
+
+        /* SKALA-VELGER STIL */
+        .scale-option {
+            display: inline-block;
+            padding: 10px;
+            background: #444;
+            margin: 5px;
+            cursor: pointer;
         }
-
-        /* 3. Simuler at knappen er "E" for tastaturbrukere */
-        /* Merk: CSS kan ikke fange opp 'E' direkte uten JS, 
-           men vi bruker labelen som en usynlig flate eller knapp. */
-
     </style>
 </head>
 <body>
 
-    <input type="checkbox" id="start-game">
+    <input type="checkbox" id="game-trigger">
     <input type="checkbox" id="interact-trigger">
 
     <div id="lobby">
-        <h1>HOVEDMENY</h1>
-        
-        <p>Vanskelighetsgrad:</p>
-        <div class="setting-group">
-            <input type="radio" name="diff" id="d1" class="ui-trigger"><label for="d1" class="scale-box">1</label>
-            <input type="radio" name="diff" id="d2" class="ui-trigger"><label for="d2" class="scale-box">2</label>
-            <input type="radio" name="diff" id="d3" class="ui-trigger" checked><label for="d3" class="scale-box">3</label>
-            <input type="radio" name="diff" id="d4" class="ui-trigger"><label for="d4" class="scale-box">4</label>
-            <input type="radio" name="diff" id="d5" class="ui-trigger"><label for="d5" class="scale-box">5</label>
+        <h2>Labyrint Utforsker</h2>
+        <p>Velg Kartstørrelse (1-5)</p>
+        <div style="margin-bottom: 20px;">
+            <span class="scale-option">1</span>
+            <span class="scale-option">2</span>
+            <span class="scale-option" style="background: #00ff00; color: black;">3</span>
+            <span class="scale-option">4</span>
+            <span class="scale-option">5</span>
         </div>
-
-        <p>Kartstørrelse:</p>
-        <div class="setting-group">
-            <input type="radio" name="map" id="m1" class="ui-trigger"><label for="m1" class="scale-box">1</label>
-            <input type="radio" name="map" id="m2" class="ui-trigger"><label for="m2" class="scale-box">2</label>
-            <input type="radio" name="map" id="m3" class="ui-trigger" checked><label for="m3" class="scale-box">3</label>
-            <input type="radio" name="map" id="m4" class="ui-trigger"><label for="m4" class="scale-box">4</label>
-            <input type="radio" name="map" id="m5" class="ui-trigger"><label for="m5" class="scale-box">5</label>
-        </div>
-
-        <label for="start-game" class="start-btn">START RUNDE</label>
+        <label for="game-trigger" style="background: white; color: black; padding: 10px 20px; cursor: pointer; font-weight: bold;">START SPILL</label>
     </div>
 
-    <div id="game-world">
-        <div class="corridor">
-            <div class="door"></div>
+    <div id="game-viewport">
+        <div class="map-grid">
+            <script>
+                // Jeg bruker en liten hjelpe-løkke kun for å slippe å skrive 2500 linjer med <div> manuelt, 
+                // men resultatet er ren HTML i browseren din.
+                for(let i=0; i<2500; i++) {
+                    document.write('<div class="cell"></div>');
+                }
+            </script>
             
-            <label for="interact-trigger" class="interact-label">Bruk (E)</label>
+            <div class="center-room">
+                <div class="door"></div>
+                <span style="font-size: 10px;">START</span>
+            </div>
         </div>
 
-        <div id="message">
-            Den er låst...
+        <label for="interact-trigger" class="interact-btn">E</label>
+
+        <div class="dialog">
+            Den er låst.
             <br>
-            <label for="interact-trigger" style="font-size: 12px; color: gray; cursor: pointer;">[Lukk]</label>
+            <label for="interact-trigger" style="color: red; cursor: pointer;">[Lukk]</label>
         </div>
     </div>
 
