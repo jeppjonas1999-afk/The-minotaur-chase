@@ -5,6 +5,10 @@
     <title>Minotaurens Labyrint: Sprite Edition</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        canvas { 
+    display: block; 
+    image-rendering: pixelated; /* Gjør pixel-arten din skarp og fin! */
+}
         canvas { display: block; }
         #menu { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .box { border: 1px solid #333; padding: 40px; background: #111; width: 380px; text-align: center; border-radius: 4px; }
@@ -40,9 +44,9 @@ const moveTime = 350;
 
 // --- SPRITE KONFIGURASJON ---
 const sprites = {
-    player: { up: new Image(sprites.player.up.src = "New Piskel-1.png (7).png";), down: new Image(sprites.player.up.src = "New Piskel-1.png (5).png";), left: new Image(sprites.player.up.src = "New Piskel-1.png (4).png";), right: new Image(sprites.player.up.src = "New Piskel-1.png (6).png";) },
-    monster: { up: new Image(sprites.player.up.src = "New Piskel-1.png (2).png";), down: new Image(sprites.player.up.src = "New Piskel-1.png (3).png";), left: new Image(sprites.player.up.src = "New Piskel-1.png.png";), right: new Image(sprites.player.up.src = "New Piskel-1.png (1).png";) },
-    wall: new Image(), exit: new Image(), yellow: new Image(), orange: new Image(), lampOn: new Image()
+    player: { up: new Image(sprites.player.up.src = "New Piskel-1.png (7).png";), down: new Image(sprites.player.down.src = "New Piskel-1.png (5).png";), left: new Image(sprites.player.left.src = "New Piskel-1.png (4).png";), right: new Image(sprites.player.right.src = "New Piskel-1.png (6).png";) },
+    monster: { up: new Image(sprites.monster.up.src = "New Piskel-1.png (2).png";), down: new Image(sprites.monster.down.src = "New Piskel-1.png (3).png";), left: new Image(sprites.monster.left.src = "New Piskel-1.png.png";), right: new Image(sprites.monster.right.src = "New Piskel-1.png (1).png";) },
+    wall: new Image(sprites.wall.src = "New Piskel-1.png (8).png";), exit: new Image(), yellow: new Image(sprites.yellow.src = "New Piskel-1.png (9).png";), orange: new Image(sprites.orange.src = "New Piskel-1.png (10).png";), lampOn: new Image(sprites.lampOn.src = "New Piskel-1.png (11).png";)
 };
 // Sett inn stier her når du har bilder, f.eks: sprites.player.up.src = "p_up.png";
 
