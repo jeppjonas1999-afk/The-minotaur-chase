@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaurens Labyrint</title>
+    <title>Minotaurens Labyrint: AI Oppgradering</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         canvas { display: block; }
@@ -32,8 +32,8 @@
             <label>Minotaur Instinkt</label>
             <select id="diff">
                 <option value="easy">ENKEL</option>
-                <option value="medium" selected>MEDIUM (1.05x fart)</option>
-                <option value="hard">VANSKELIG (1.6x fart)</option>
+                <option value="medium" selected>MEDIUM</option>
+                <option value="hard">VANSKELIG</option>
             </select>
             <button onclick="start()">Begynn flukten</button>
         </div>
@@ -47,17 +47,21 @@ const ctx = canvas.getContext("2d");
 
 let grid = [];
 const tileSize = 40;
-const moveTime = 350; // 0.35 sekunder per rute
+const moveTime = 350; // 0.35 sekunder per rute for spiller
 
 let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0 };
-let monster = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0, speedMult: 1, precision: 15 };
+let monster = { 
+    gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0, 
+    baseSpeedMult: 1, precision: 15, state: 'hunting', lastSeenX: 0, lastSeenY: 0, huntTarget: null
+};
 let exit = { x: 0, y: 0 };
 let isRunning = false;
 
+// Presisjon er økt med ~25% fra forrige versjon (30->38, 15->19, 7->9)
 const diffSettings = {
-    easy:   { mSpeed: 0.8, precision: 30 }, 
-    medium: { mSpeed: 1.05, precision: 15 }, 
-    hard:   { mSpeed: 1.6, precision: 7 } 
+    easy:   { mSpeed: 0.8, precision: 38 }, 
+    medium: { mSpeed: 1.05, precision: 19 }, 
+    hard:   { mSpeed: 1.6, precision: 9 } 
 };
 
 function start() {
@@ -67,19 +71,19 @@ function start() {
     
     generateComplexMaze(s);
     
-    // Startposisjon (nederst til venstre)
     player.gridX = 1; player.gridY = grid.length - 2;
     player.targetX = player.gridX; player.targetY = player.gridY;
     player.renderX = player.gridX * tileSize; player.renderY = player.gridY * tileSize;
 
-    // Monsterposisjon (midten)
     monster.gridX = Math.floor(grid[0].length / 2);
     monster.gridY = Math.floor(grid.length / 2);
     if(grid[monster.gridY][monster.gridX] === 1) monster.gridX++; 
     monster.targetX = monster.gridX; monster.targetY = monster.gridY;
     monster.renderX = monster.gridX * tileSize; monster.renderY = monster.gridY * tileSize;
-    monster.speedMult = settings.mSpeed;
+    
+    monster.baseSpeedMult = settings.mSpeed;
     monster.precision = settings.precision;
+    monster.state = 'hunting';
 
     document.getElementById("menu").style.display = "none";
     isRunning = true;
@@ -89,23 +93,19 @@ function start() {
 function generateComplexMaze(size) {
     let dim = size * 2 + 1;
     grid = Array.from({length: dim}, () => Array(dim).fill(1));
-
     function walk(x, y) {
         grid[y][x] = 0;
         let dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(() => Math.random() - 0.5);
         for(let [dx, dy] of dirs) {
             let nx = x + dx, ny = y + dy;
             if(ny > 0 && ny < dim-1 && nx > 0 && nx < dim-1 && grid[ny][nx] === 1) {
-                grid[y + dy/2][x + dx/2] = 0; // Åpne veggen mellom
+                grid[y + dy/2][x + dx/2] = 0; 
                 walk(nx, ny);
             }
         }
     }
     walk(1, 1);
-
-    // Sett utgangen (øverst til høyre)
-    exit.x = dim - 2;
-    exit.y = 1;
+    exit.x = dim - 2; exit.y = 1;
     grid[exit.y][exit.x] = 0;
 }
 
@@ -113,7 +113,58 @@ const keys = {};
 window.onkeydown = e => keys[e.key.toLowerCase()] = true;
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
+// --- AI HJELPEFUNKSJONER ---
+
+// Sjekker om det er fri sikt i rette ganger
+function hasLineOfSight(x1, y1, x2, y2) {
+    if (x1 !== x2 && y1 !== y2) return false; 
+    if (x1 === x2) {
+        let minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        for(let y=minY+1; y<maxY; y++) if(grid[y][x1] === 1) return false;
+        return true;
+    } else {
+        let minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        for(let x=minX+1; x<maxX; x++) if(grid[y1][x] === 1) return false;
+        return true;
+    }
+}
+
+// Finner en lovlig rute i sirkelen rundt spilleren
+function getValidFloorNear(px, py, radius) {
+    for(let i=0; i<15; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let r = Math.random() * radius;
+        let tx = Math.floor(px + Math.cos(angle) * r);
+        let ty = Math.floor(py + Math.sin(angle) * r);
+        if (grid[ty] && grid[ty][tx] === 0) return {x: tx, y: ty};
+    }
+    return {x: px, y: py}; 
+}
+
+// Finn korteste vei via rutenett (Breadth-First Search)
+function getNextStep(startX, startY, targetX, targetY) {
+    if(startX === targetX && startY === targetY) return null;
+    let queue = [{x: startX, y: startY, path: []}];
+    let visited = new Set([`${startX},${startY}`]);
+
+    while(queue.length > 0) {
+        let curr = queue.shift();
+        if(curr.x === targetX && curr.y === targetY) return curr.path[0]; 
+
+        let dirs = [[0,-1], [0,1], [-1,0], [1,0]];
+        for(let [dx, dy] of dirs) {
+            let nx = curr.x + dx, ny = curr.y + dy;
+            if(grid[ny] && grid[ny][nx] === 0 && !visited.has(`${nx},${ny}`)) {
+                visited.add(`${nx},${ny}`);
+                queue.push({x: nx, y: ny, path: [...curr.path, {x: nx, y: ny}]});
+            }
+        }
+    }
+    return null; // Fant ingen vei (burde ikke skje i en perfekt labyrint)
+}
+
 function update(now) {
+    // --- SPILLER ---
     if (!player.isMoving) {
         let dx = 0, dy = 0;
         if (keys['w'] || keys['arrowup']) dy = -1;
@@ -135,32 +186,67 @@ function update(now) {
         if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
     }
 
-    // Seier-sjekk
     if (player.gridX === exit.x && player.gridY === exit.y) {
         alert("DU SLAPP UT!"); location.reload();
     }
 
-    // Monster AI
+    // --- MONSTER AI ---
     if (!monster.isMoving) {
-        let tx = player.gridX + Math.floor(Math.random() * monster.precision - monster.precision/2);
-        let ty = player.gridY + Math.floor(Math.random() * monster.precision - monster.precision/2);
-        let mdx = 0, mdy = 0;
-        if (Math.abs(tx - monster.gridX) > Math.abs(ty - monster.gridY)) mdx = tx > monster.gridX ? 1 : -1;
-        else mdy = ty > monster.gridY ? 1 : -1;
+        // 1. Ser den deg?
+        let seesPlayer = hasLineOfSight(monster.gridX, monster.gridY, player.gridX, player.gridY);
+        if (seesPlayer) {
+            monster.state = 'chasing';
+            monster.lastSeenX = player.gridX;
+            monster.lastSeenY = player.gridY;
+        }
+
+        // 2. Velg destinasjon
+        let goalX, goalY;
+        if (monster.state === 'chasing') {
+            goalX = monster.lastSeenX;
+            goalY = monster.lastSeenY;
+            // Mister synet når den når sist kjente posisjon
+            if (monster.gridX === goalX && monster.gridY === goalY && !seesPlayer) {
+                monster.state = 'hunting';
+                monster.huntTarget = null; // Tvinger ny jakt-sirkel
+            }
+        } 
         
-        if (grid[monster.gridY + mdy] && grid[monster.gridY + mdy][monster.gridX + mdx] === 0) {
-            monster.isMoving = true; monster.moveStart = now;
-            monster.targetX = monster.gridX + mdx; monster.targetY = monster.gridY + mdy;
+        if (monster.state === 'hunting') {
+            // Finner et nytt sted i sirkelen hvis den ikke har ett, eller nettopp ankom forrige
+            if (!monster.huntTarget || (monster.gridX === monster.huntTarget.x && monster.gridY === monster.huntTarget.y)) {
+                monster.huntTarget = getValidFloorNear(player.gridX, player.gridY, monster.precision);
+            }
+            goalX = monster.huntTarget.x;
+            goalY = monster.huntTarget.y;
+        }
+
+        // 3. Regn ut neste steg (Pathfinding)
+        let nextStep = getNextStep(monster.gridX, monster.gridY, goalX, goalY);
+        
+        if (nextStep) {
+            monster.isMoving = true; 
+            monster.moveStart = now;
+            monster.targetX = nextStep.x; 
+            monster.targetY = nextStep.y;
+        } else {
+            // Fail-safe hvis den tilfeldigvis blir forvirret
+            monster.huntTarget = null; 
         }
     } else {
-        let t = Math.min((now - monster.moveStart) / (moveTime / monster.speedMult), 1);
+        // Hastighets-boost hvis den jager (+0.2)
+        let currentSpeedMult = monster.baseSpeedMult + (monster.state === 'chasing' ? 0.2 : 0);
+        let mMoveTime = moveTime / currentSpeedMult;
+        
+        let t = Math.min((now - monster.moveStart) / mMoveTime, 1);
         monster.renderX = (monster.gridX + (monster.targetX - monster.gridX) * t) * tileSize;
         monster.renderY = (monster.gridY + (monster.targetY - monster.gridY) * t) * tileSize;
         if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
+    // --- KOLLISJON ---
     if (Math.sqrt((player.renderX - monster.renderX)**2 + (player.renderY - monster.renderY)**2) < tileSize * 0.5) {
-        alert("Minotauren fant deg i mørket..."); location.reload();
+        alert("Minotauren tok deg i mørket!"); location.reload();
     }
 }
 
@@ -181,14 +267,14 @@ function loop(now) {
         }
     }
 
-    // Utgang (Grønn)
     ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX + 10, exit.y*tileSize+offY + 10, 20, 20);
 
-    // Figurer
-    ctx.fillStyle = "#500"; ctx.beginPath(); ctx.arc(monster.renderX+offX+tileSize/2, monster.renderY+offY+tileSize/2, tileSize/3, 0, Math.PI*2); ctx.fill();
+    // Monsteret lyser knallrødt når det har oppdaget deg (Chasing)
+    ctx.fillStyle = monster.state === 'chasing' ? "#ff0000" : "#500"; 
+    ctx.beginPath(); ctx.arc(monster.renderX+offX+tileSize/2, monster.renderY+offY+tileSize/2, tileSize/3, 0, Math.PI*2); ctx.fill();
+    
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 8, 0, Math.PI*2); ctx.fill();
 
-    // Lys/Mørke
     let g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, 200);
     g.addColorStop(0, "transparent"); g.addColorStop(1, "rgba(0,0,0,0.98)");
     ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width, canvas.height);
