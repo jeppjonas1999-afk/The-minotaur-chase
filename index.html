@@ -2,45 +2,34 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaurens Labyrint: Jumpscare Edition</title>
+    <title>Minotaur: The Scent of Blood</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         canvas { display: block; }
         
-        /* Meny og skjermer */
-        .overlay { 
-            position: absolute; inset: 0; background: #0a0a0a; 
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; 
-        }
+        .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; }
-        h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; }
+        h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; margin: 0; }
+        p { color: #666; font-size: 12px; margin-bottom: 20px; }
         
         select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 10px; cursor: pointer; font-size: 16px; }
         button:hover { background: #300; border-color: #f00; }
 
-        /* Jumpscare Effekt */
-        #jumpscare {
-            position: absolute; inset: 0; background: #000; 
-            display: none; z-index: 1000; justify-content: center; align-items: center;
-            overflow: hidden;
-        }
-        .scare-face {
-            width: 100%; height: 100%; background: radial-gradient(circle, #f00 0%, #000 70%);
-            display: flex; justify-content: center; align-items: center;
-            animation: shake 0.1s infinite;
-        }
-        .scare-text { color: #fff; font-size: 80px; font-weight: bold; text-transform: uppercase; transform: scale(2); }
+        #jumpscare { position: absolute; inset: 0; background: #000; display: none; z-index: 1000; justify-content: center; align-items: center; overflow: hidden; }
+        .scare-face { width: 100%; height: 100%; background: radial-gradient(circle, #f00 0%, #000 70%); display: flex; justify-content: center; align-items: center; animation: shake 0.1s infinite; }
+        .scare-text { color: #fff; font-size: 80px; font-weight: bold; text-transform: uppercase; }
 
         @keyframes shake {
-            0% { transform: translate(5px, 5px) rotate(0deg); }
-            25% { transform: translate(-5px, -10px) rotate(1deg); }
-            50% { transform: translate(10px, 5px) rotate(-1deg); }
-            75% { transform: translate(-5px, 5px) rotate(0deg); }
-            100% { transform: translate(5px, -5px) rotate(1deg); }
+            0% { transform: translate(5px, 5px); }
+            50% { transform: translate(-5px, -10px); }
+            100% { transform: translate(5px, 5px); }
         }
 
         #victory-screen { display: none; background: rgba(0, 50, 0, 0.9); }
-        #prompt { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border: 1px solid #444; display: none; }
+        #prompt { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border: 1px solid #444; display: none; z-index: 50; }
+        
+        /* Ability Varsel */
+        #ability-alert { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-weight: bold; letter-spacing: 3px; display: none; z-index: 50; text-shadow: 0 0 5px #000; }
     </style>
 </head>
 <body>
@@ -48,36 +37,34 @@
     <div id="menu" class="overlay">
         <div class="box">
             <h1>MINOTAUR</h1>
-            <label>KARTSTØRRELSE</label>
+            <p>HAN KAN LUKTE DEG...</p>
+            <label>STØRRELSE</label>
             <select id="size">
                 <option value="15">LITEN</option>
                 <option value="25" selected>STOR</option>
                 <option value="45">DIGERT</option>
             </select>
+            <label>VANSKELIGHETSGRAD</label>
             <select id="diff">
-                <option value="easy">ENKEL</option>
-                <option value="medium" selected>MEDIUM</option>
-                <option value="hard">VANSKELIG</option>
+                <option value="easy">ENKEL (Ability: 60-90s)</option>
+                <option value="medium" selected>MEDIUM (Ability: 45-75s)</option>
+                <option value="hard">VANSKELIG (Ability: 20-45s)</option>
             </select>
             <button onclick="start()">START FLUKTEN</button>
         </div>
     </div>
 
+    <div id="ability-alert">MINOTAUREN LUKTER ETTER DEG...</div>
+
     <div id="jumpscare">
-        <div class="scare-face">
-            <div class="scare-text">FANGET!</div>
-        </div>
+        <div class="scare-face"><div class="scare-text">FANGET!</div></div>
     </div>
 
     <div id="victory-screen" class="overlay">
-        <div class="box" style="border-color: #0f0;">
-            <h1 style="color: #0f0; text-shadow: 0 0 10px #0f0;">FRIHET</h1>
-            <p>Du kom deg ut av labyrinten i live.</p>
-            <button onclick="location.reload()">SPILL IGJEN</button>
-        </div>
+        <div class="box" style="border-color: #0f0;"><h1 style="color: #0f0;">FRIHET</h1><button onclick="location.reload()">SPILL IGJEN</button></div>
     </div>
 
-    <div id="prompt">TRYKK [E] FOR Å BRUKE LAMPE</div>
+    <div id="prompt">TRYKK [E]</div>
     <canvas id="game"></canvas>
 
 <script>
@@ -89,18 +76,25 @@ const moveTime = 350;
 let grid = [];
 let isRunning = false;
 let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, visionRadius: 180 };
-let monster = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, waitEnd: 0, baseSpeedMult: 1 };
+let monster = { 
+    gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, 
+    isMoving: false, moveStart: 0, waitEnd: 0, baseSpeedMult: 1,
+    abilityActive: false, nextAbilityTime: 0, speedBoost: 1, isHunting: false
+};
 let items = [], placedLights = [], exit = {x:0, y:0};
 
 const diffSettings = {
-    easy: { mSpeed: 0.8 },
-    medium: { mSpeed: 1.1 },
-    hard: { mSpeed: 1.7 }
+    easy: { mSpeed: 0.8, abMin: 60000, abMax: 90000 },
+    medium: { mSpeed: 1.1, abMin: 45000, abMax: 75000 },
+    hard: { mSpeed: 1.7, abMin: 20000, abMax: 45000 }
 };
+
+let currentSettings;
 
 function start() {
     const s = parseInt(document.getElementById("size").value);
-    const settings = diffSettings[document.getElementById("diff").value];
+    currentSettings = diffSettings[document.getElementById("diff").value];
+    
     generateMaze(s);
     player.gridX = 1; player.gridY = grid.length - 2;
     player.renderX = player.gridX * tileSize; player.renderY = player.gridY * tileSize;
@@ -110,12 +104,19 @@ function start() {
     if(grid[monster.gridY][monster.gridX] === 1) monster.gridX++;
     monster.renderX = monster.gridX * tileSize; monster.renderY = monster.gridY * tileSize;
     monster.targetX = monster.gridX; monster.targetY = monster.gridY;
-    monster.baseSpeedMult = settings.mSpeed;
+    monster.baseSpeedMult = currentSettings.mSpeed;
+    
+    // Sett første ability-timer
+    setNextAbility(performance.now());
 
-    spawnItems(s);
     document.getElementById("menu").style.display = "none";
     isRunning = true;
     requestAnimationFrame(loop);
+}
+
+function setNextAbility(now) {
+    const delay = Math.random() * (currentSettings.abMax - currentSettings.abMin) + currentSettings.abMin;
+    monster.nextAbilityTime = now + delay;
 }
 
 function generateMaze(size) {
@@ -145,32 +146,26 @@ function spawnItems(size) {
     }
 }
 
-function triggerJumpscare() {
-    isRunning = false;
-    document.getElementById("jumpscare").style.display = "flex";
-    setTimeout(() => {
-        location.reload();
-    }, 2000); // Viser jumpscare i 2 sekunder før restart
-}
-
-const keys = {};
-window.onkeydown = e => {
-    keys[e.key.toLowerCase()] = true;
-    if(e.key.toLowerCase() === 'e') {
-        let i = items.findIndex(it => it.x === player.gridX && it.y === player.gridY);
-        if(i !== -1) {
-            if(items[i].type === 'orange') placedLights.push({x: player.gridX, y: player.gridY});
-            else player.visionRadius += 60;
-            items.splice(i, 1);
-        }
-    }
-};
-window.onkeyup = e => keys[e.key.toLowerCase()] = false;
-
 function update(now) {
     if (!isRunning) return;
 
-    // Spillerbevegelse
+    // --- ABILITY LOGIKK ---
+    if (now > monster.nextAbilityTime && !monster.abilityActive) {
+        monster.abilityActive = true;
+        monster.waitEnd = now + 2500; // Stopper i 2.5 sek
+        document.getElementById("ability-alert").style.display = "block";
+        
+        setTimeout(() => {
+            monster.abilityActive = false;
+            monster.speedBoost = 1.5; // Får speed boost
+            document.getElementById("ability-alert").style.display = "none";
+            setNextAbility(performance.now());
+            // Boost varer i 10 sekunder
+            setTimeout(() => { monster.speedBoost = 1.0; }, 10000);
+        }, 2500);
+    }
+
+    // Spiller
     if (!player.isMoving) {
         let dx = 0, dy = 0;
         if (keys['w'] || keys['arrowup']) dy = -1;
@@ -191,11 +186,17 @@ function update(now) {
         if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
     }
 
-    // Monsterbevegelse
+    // Monster AI
     if (!monster.isMoving && now > monster.waitEnd) {
+        // Sjekk om spiller er innenfor 3 blokker (Scent radius)
+        let distGrid = Math.abs(monster.gridX - player.gridX) + Math.abs(monster.gridY - player.gridY);
+        monster.isHunting = distGrid <= 10; // "Ser" deg litt lenger hvis han lukter
+
         let queue = [{x: monster.gridX, y: monster.gridY, path: []}];
         let visited = new Set([`${monster.gridX},${monster.gridY}`]);
         let next = null;
+
+        // Pathfinding mot spiller
         while(queue.length > 0) {
             let curr = queue.shift();
             if(curr.x === player.gridX && curr.y === player.gridY) { next = curr.path[0]; break; }
@@ -207,25 +208,34 @@ function update(now) {
                 }
             });
         }
+
         if (next) {
             monster.isMoving = true; monster.moveStart = now;
             monster.targetX = next.x; monster.targetY = next.y;
-            let paths = 0;
-            [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx, dy]) => { if(grid[monster.gridY+dy] && grid[monster.gridY+dy][monster.gridX+dx] === 0) paths++; });
-            if(paths > 2) monster.waitEnd = now + 1000;
+            
+            // Sjanse for pause i kryss (50% sjanse, 0.75s pause)
+            // Skipper pause hvis han er i jaktmodus
+            if (!monster.isHunting && Math.random() < 0.5) {
+                let paths = 0;
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx, dy]) => { 
+                    if(grid[monster.gridY+dy] && grid[monster.gridY+dy][monster.gridX+dx] === 0) paths++; 
+                });
+                if(paths > 2) monster.waitEnd = now + 750;
+            }
         }
     } else if (monster.isMoving) {
-        let t = Math.min((now - monster.moveStart) / (moveTime / monster.baseSpeedMult), 1);
+        let currentMoveTime = moveTime / (monster.baseSpeedMult * monster.speedBoost);
+        let t = Math.min((now - monster.moveStart) / currentMoveTime, 1);
         monster.renderX = (monster.gridX + (monster.targetX - monster.gridX) * t) * tileSize;
         monster.renderY = (monster.gridY + (monster.targetY - monster.gridY) * t) * tileSize;
         if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
+    if (Math.abs(player.renderX - monster.renderX) < 25 && Math.abs(player.renderY - monster.renderY) < 25) { 
+        isRunning = false; document.getElementById("jumpscare").style.display = "flex";
+        setTimeout(() => location.reload(), 2000);
+    }
     if (player.gridX === exit.x && player.gridY === exit.y) { isRunning = false; document.getElementById("victory-screen").style.display = "flex"; }
-    
-    // JUMPSCARE SJEKK
-    let dist = Math.sqrt((player.renderX - monster.renderX)**2 + (player.renderY - monster.renderY)**2);
-    if (dist < 25) { triggerJumpscare(); }
 }
 
 function loop(now) {
@@ -246,19 +256,33 @@ function loop(now) {
         ctx.beginPath(); ctx.arc(it.x*tileSize+offX+20, it.y*tileSize+offY+20, 8, 0, Math.PI*2); ctx.fill();
     });
 
+    // Utgang og Karakterer
     ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX+10, exit.y*tileSize+offY+10, 20, 20);
-    ctx.fillStyle = "#600"; ctx.beginPath(); ctx.arc(monster.renderX+offX+20, monster.renderY+offY+20, 14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = monster.speedBoost > 1 ? "#f00" : "#600";
+    ctx.beginPath(); ctx.arc(monster.renderX+offX+20, monster.renderY+offY+20, 14, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
 
+    // Ability Piler (Vises når han stopper for å lukte)
+    if (monster.abilityActive) {
+        ctx.strokeStyle = "#f00"; ctx.lineWidth = 3;
+        const mx = monster.renderX + offX + 20; const my = monster.renderY + offY + 20;
+        [[0,-40],[0,40],[-40,0],[40,0]].forEach(([dx, dy]) => {
+            ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx+dx, my+dy); ctx.stroke();
+        });
+    }
+
+    // Lys/Mørke
     let temp = document.createElement('canvas'); temp.width = canvas.width; temp.height = canvas.height;
     let tCtx = temp.getContext('2d');
     tCtx.fillStyle = "rgba(0,0,0,0.98)"; tCtx.fillRect(0,0,canvas.width,canvas.height);
     tCtx.globalCompositeOperation = "destination-out";
     
+    // Spiller lys
     let pG = tCtx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, player.visionRadius);
     pG.addColorStop(0, "white"); pG.addColorStop(1, "transparent");
     tCtx.fillStyle = pG; tCtx.beginPath(); tCtx.arc(canvas.width/2, canvas.height/2, player.visionRadius, 0, Math.PI*2); tCtx.fill();
 
+    // Plasserte lys
     placedLights.forEach(l => {
         let lx = l.x*tileSize+offX+20, ly = l.y*tileSize+offY+20;
         let lG = tCtx.createRadialGradient(lx, ly, 10, lx, ly, 160);
@@ -269,6 +293,20 @@ function loop(now) {
     ctx.drawImage(temp, 0, 0);
     requestAnimationFrame(loop);
 }
+
+const keys = {};
+window.onkeydown = e => keys[e.key.toLowerCase()] = true;
+window.onkeyup = e => {
+    keys[e.key.toLowerCase()] = false;
+    if(e.key.toLowerCase() === 'e') {
+        let i = items.findIndex(it => it.x === player.gridX && it.y === player.gridY);
+        if(i !== -1) {
+            if(items[i].type === 'orange') placedLights.push({x: player.gridX, y: player.gridY});
+            else player.visionRadius += 60;
+            items.splice(i, 1);
+        }
+    }
+};
 </script>
 </body>
 </html>
