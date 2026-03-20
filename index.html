@@ -2,34 +2,78 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaurens Labyrint: Sprite Edition</title>
+    <title>Minotaurens Labyrint: Jumpscare Edition</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        canvas { 
-    display: block; 
-    image-rendering: pixelated; /* Gjør pixel-arten din skarp og fin! */
-}
+        body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         canvas { display: block; }
-        #menu { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        .box { border: 1px solid #333; padding: 40px; background: #111; width: 380px; text-align: center; border-radius: 4px; }
-        h1 { font-weight: 200; letter-spacing: 8px; margin-bottom: 30px; }
-        select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 8px; cursor: pointer; }
-        button { background: #fff; color: #000; font-weight: bold; margin-top: 25px; border: none; }
-        #prompt { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border: 1px solid #444; display: none; pointer-events: none; }
+        
+        /* Meny og skjermer */
+        .overlay { 
+            position: absolute; inset: 0; background: #0a0a0a; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; 
+        }
+        .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; }
+        h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; }
+        
+        select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 10px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #300; border-color: #f00; }
+
+        /* Jumpscare Effekt */
+        #jumpscare {
+            position: absolute; inset: 0; background: #000; 
+            display: none; z-index: 1000; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+        .scare-face {
+            width: 100%; height: 100%; background: radial-gradient(circle, #f00 0%, #000 70%);
+            display: flex; justify-content: center; align-items: center;
+            animation: shake 0.1s infinite;
+        }
+        .scare-text { color: #fff; font-size: 80px; font-weight: bold; text-transform: uppercase; transform: scale(2); }
+
+        @keyframes shake {
+            0% { transform: translate(5px, 5px) rotate(0deg); }
+            25% { transform: translate(-5px, -10px) rotate(1deg); }
+            50% { transform: translate(10px, 5px) rotate(-1deg); }
+            75% { transform: translate(-5px, 5px) rotate(0deg); }
+            100% { transform: translate(5px, -5px) rotate(1deg); }
+        }
+
+        #victory-screen { display: none; background: rgba(0, 50, 0, 0.9); }
+        #prompt { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border: 1px solid #444; display: none; }
     </style>
 </head>
 <body>
 
-    <div id="menu">
+    <div id="menu" class="overlay">
         <div class="box">
-            <h1>LABYRINT</h1>
-            <select id="size"><option value="15">Liten</option><option value="25" selected>Stor</option></select>
+            <h1>MINOTAUR</h1>
+            <label>KARTSTØRRELSE</label>
+            <select id="size">
+                <option value="15">LITEN</option>
+                <option value="25" selected>STOR</option>
+                <option value="45">DIGERT</option>
+            </select>
             <select id="diff">
                 <option value="easy">ENKEL</option>
                 <option value="medium" selected>MEDIUM</option>
                 <option value="hard">VANSKELIG</option>
             </select>
-            <button onclick="start()">Begynn flukten</button>
+            <button onclick="start()">START FLUKTEN</button>
+        </div>
+    </div>
+
+    <div id="jumpscare">
+        <div class="scare-face">
+            <div class="scare-text">FANGET!</div>
+        </div>
+    </div>
+
+    <div id="victory-screen" class="overlay">
+        <div class="box" style="border-color: #0f0;">
+            <h1 style="color: #0f0; text-shadow: 0 0 10px #0f0;">FRIHET</h1>
+            <p>Du kom deg ut av labyrinten i live.</p>
+            <button onclick="location.reload()">SPILL IGJEN</button>
         </div>
     </div>
 
@@ -42,24 +86,16 @@ const ctx = canvas.getContext("2d");
 const tileSize = 40;
 const moveTime = 350;
 
-// --- SPRITE KONFIGURASJON ---
-const sprites = {
-    player: { up: new Image(sprites.player.up.src = "New Piskel-1.png (7).png";), down: new Image(sprites.player.down.src = "New Piskel-1.png (5).png";), left: new Image(sprites.player.left.src = "New Piskel-1.png (4).png";), right: new Image(sprites.player.right.src = "New Piskel-1.png (6).png";) },
-    monster: { up: new Image(sprites.monster.up.src = "New Piskel-1.png (2).png";), down: new Image(sprites.monster.down.src = "New Piskel-1.png (3).png";), left: new Image(sprites.monster.left.src = "New Piskel-1.png.png";), right: new Image(sprites.monster.right.src = "New Piskel-1.png (1).png";) },
-    wall: new Image(sprites.wall.src = "New Piskel-1.png (8).png";), exit: new Image(), yellow: new Image(sprites.yellow.src = "New Piskel-1.png (9).png";), orange: new Image(sprites.orange.src = "New Piskel-1.png (10).png";), lampOn: new Image(sprites.lampOn.src = "New Piskel-1.png (11).png";)
-};
-// Sett inn stier her når du har bilder, f.eks: sprites.player.up.src = "p_up.png";
-
 let grid = [];
 let isRunning = false;
-let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, visionRadius: 180, dir: 'down' };
-let monster = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, state: 'hunting', dir: 'down', waitEnd: 0, baseSpeedMult: 1, precision: 25 };
+let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, visionRadius: 180 };
+let monster = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, waitEnd: 0, baseSpeedMult: 1 };
 let items = [], placedLights = [], exit = {x:0, y:0};
 
 const diffSettings = {
-    easy: { mSpeed: 0.8, precision: 50 },
-    medium: { mSpeed: 1.05, precision: 25 },
-    hard: { mSpeed: 1.6, precision: 12 }
+    easy: { mSpeed: 0.8 },
+    medium: { mSpeed: 1.1 },
+    hard: { mSpeed: 1.7 }
 };
 
 function start() {
@@ -67,9 +103,15 @@ function start() {
     const settings = diffSettings[document.getElementById("diff").value];
     generateMaze(s);
     player.gridX = 1; player.gridY = grid.length - 2;
+    player.renderX = player.gridX * tileSize; player.renderY = player.gridY * tileSize;
+    player.targetX = player.gridX; player.targetY = player.gridY;
+    
     monster.gridX = Math.floor(grid[0].length / 2); monster.gridY = Math.floor(grid.length / 2);
     if(grid[monster.gridY][monster.gridX] === 1) monster.gridX++;
-    monster.baseSpeedMult = settings.mSpeed; monster.precision = settings.precision;
+    monster.renderX = monster.gridX * tileSize; monster.renderY = monster.gridY * tileSize;
+    monster.targetX = monster.gridX; monster.targetY = monster.gridY;
+    monster.baseSpeedMult = settings.mSpeed;
+
     spawnItems(s);
     document.getElementById("menu").style.display = "none";
     isRunning = true;
@@ -95,7 +137,7 @@ function generateMaze(size) {
 
 function spawnItems(size) {
     items = [];
-    for(let i=0; i < (size === 15 ? 8 : 15); i++) {
+    for(let i=0; i < Math.floor(size/1.5); i++) {
         let rx, ry;
         do { rx = Math.floor(Math.random()*grid[0].length); ry = Math.floor(Math.random()*grid.length); } 
         while(grid[ry][rx] === 1);
@@ -103,16 +145,15 @@ function spawnItems(size) {
     }
 }
 
-// Funksjon for å tegne en sprite eller en farget boks hvis bildet mangler
-function drawSprite(img, x, y, w, h, fallbackColor) {
-    if (img.complete && img.src) {
-        ctx.drawImage(img, x, y, w, h);
-    } else {
-        ctx.fillStyle = fallbackColor;
-        ctx.fillRect(x, y, w, h);
-    }
+function triggerJumpscare() {
+    isRunning = false;
+    document.getElementById("jumpscare").style.display = "flex";
+    setTimeout(() => {
+        location.reload();
+    }, 2000); // Viser jumpscare i 2 sekunder før restart
 }
 
+const keys = {};
 window.onkeydown = e => {
     keys[e.key.toLowerCase()] = true;
     if(e.key.toLowerCase() === 'e') {
@@ -124,17 +165,18 @@ window.onkeydown = e => {
         }
     }
 };
-const keys = {};
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
 function update(now) {
+    if (!isRunning) return;
+
+    // Spillerbevegelse
     if (!player.isMoving) {
         let dx = 0, dy = 0;
-        if (keys['w'] || keys['arrowup']) { dy = -1; player.dir = 'up'; }
-        else if (keys['s'] || keys['arrowdown']) { dy = 1; player.dir = 'down'; }
-        else if (keys['a'] || keys['arrowleft']) { dx = -1; player.dir = 'left'; }
-        else if (keys['d'] || keys['arrowright']) { dx = 1; player.dir = 'right'; }
-        
+        if (keys['w'] || keys['arrowup']) dy = -1;
+        else if (keys['s'] || keys['arrowdown']) dy = 1;
+        else if (keys['a'] || keys['arrowleft']) dx = -1;
+        else if (keys['d'] || keys['arrowright']) dx = 1;
         if (dx !== 0 || dy !== 0) {
             let nx = player.gridX + dx, ny = player.gridY + dy;
             if (grid[ny] && grid[ny][nx] === 0) {
@@ -149,16 +191,14 @@ function update(now) {
         if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
     }
 
-    // Monster AI med pause i kryss
+    // Monsterbevegelse
     if (!monster.isMoving && now > monster.waitEnd) {
-        let goalX = player.gridX, goalY = player.gridY;
         let queue = [{x: monster.gridX, y: monster.gridY, path: []}];
         let visited = new Set([`${monster.gridX},${monster.gridY}`]);
         let next = null;
-        
         while(queue.length > 0) {
             let curr = queue.shift();
-            if(curr.x === goalX && curr.y === goalY) { next = curr.path[0]; break; }
+            if(curr.x === player.gridX && curr.y === player.gridY) { next = curr.path[0]; break; }
             [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx, dy]) => {
                 let nx = curr.x + dx, ny = curr.y + dy;
                 if(grid[ny] && grid[ny][nx] === 0 && !visited.has(`${nx},${ny}`)) {
@@ -167,16 +207,9 @@ function update(now) {
                 }
             });
         }
-
         if (next) {
-            if (next.x > monster.gridX) monster.dir = 'right';
-            else if (next.x < monster.gridX) monster.dir = 'left';
-            else if (next.y > monster.gridY) monster.dir = 'down';
-            else if (next.y < monster.gridY) monster.dir = 'up';
-
             monster.isMoving = true; monster.moveStart = now;
             monster.targetX = next.x; monster.targetY = next.y;
-
             let paths = 0;
             [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx, dy]) => { if(grid[monster.gridY+dy] && grid[monster.gridY+dy][monster.gridX+dx] === 0) paths++; });
             if(paths > 2) monster.waitEnd = now + 1000;
@@ -188,9 +221,11 @@ function update(now) {
         if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
-    document.getElementById("prompt").style.display = items.some(it => it.x === player.gridX && it.y === player.gridY) ? "block" : "none";
-    if (player.gridX === exit.x && player.gridY === exit.y) { alert("FRIHET!"); location.reload(); }
-    if (Math.abs(player.renderX - monster.renderX) < 20 && Math.abs(player.renderY - monster.renderY) < 20) { alert("Tatt!"); location.reload(); }
+    if (player.gridX === exit.x && player.gridY === exit.y) { isRunning = false; document.getElementById("victory-screen").style.display = "flex"; }
+    
+    // JUMPSCARE SJEKK
+    let dist = Math.sqrt((player.renderX - monster.renderX)**2 + (player.renderY - monster.renderY)**2);
+    if (dist < 25) { triggerJumpscare(); }
 }
 
 function loop(now) {
@@ -199,33 +234,34 @@ function loop(now) {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     const offX = canvas.width/2 - player.renderX - 20; const offY = canvas.height/2 - player.renderY - 20;
 
-    // Tegn kart
-    ctx.fillStyle = "#111"; ctx.fillRect(0,0, canvas.width, canvas.height);
+    ctx.fillStyle = "#050505"; ctx.fillRect(0,0, canvas.width, canvas.height);
     for(let y=0; y<grid.length; y++) {
         for(let x=0; x<grid[y].length; x++) {
-            if(grid[y][x] === 1) drawSprite(sprites.wall, x*tileSize+offX, y*tileSize+offY, tileSize, tileSize, "#1a1a1a");
+            if(grid[y][x] === 1) { ctx.fillStyle = "#1a1a1a"; ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize); }
         }
     }
     
-    items.forEach(it => drawSprite(it.type === 'orange' ? sprites.orange : sprites.yellow, it.x*tileSize+offX+10, it.y*tileSize+offY+10, 20, 20, it.type === 'orange' ? "#ffa500" : "#ff0"));
-    drawSprite(sprites.exit, exit.x*tileSize+offX+5, exit.y*tileSize+offY+5, 30, 30, "#0f0");
-    drawSprite(sprites.monster[monster.dir], monster.renderX+offX+5, monster.renderY+offY+5, 30, 30, "#f00");
-    drawSprite(sprites.player[player.dir], canvas.width/2-15, canvas.height/2-15, 30, 30, "#fff");
+    items.forEach(it => {
+        ctx.fillStyle = it.type === 'orange' ? "#ffa500" : "#ffff00";
+        ctx.beginPath(); ctx.arc(it.x*tileSize+offX+20, it.y*tileSize+offY+20, 8, 0, Math.PI*2); ctx.fill();
+    });
 
-    // Mørke
+    ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX+10, exit.y*tileSize+offY+10, 20, 20);
+    ctx.fillStyle = "#600"; ctx.beginPath(); ctx.arc(monster.renderX+offX+20, monster.renderY+offY+20, 14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
+
     let temp = document.createElement('canvas'); temp.width = canvas.width; temp.height = canvas.height;
     let tCtx = temp.getContext('2d');
     tCtx.fillStyle = "rgba(0,0,0,0.98)"; tCtx.fillRect(0,0,canvas.width,canvas.height);
     tCtx.globalCompositeOperation = "destination-out";
     
-    let pG = tCtx.createRadialGradient(canvas.width/2, canvas.height/2, 20, canvas.width/2, canvas.height/2, player.visionRadius);
+    let pG = tCtx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, player.visionRadius);
     pG.addColorStop(0, "white"); pG.addColorStop(1, "transparent");
     tCtx.fillStyle = pG; tCtx.beginPath(); tCtx.arc(canvas.width/2, canvas.height/2, player.visionRadius, 0, Math.PI*2); tCtx.fill();
 
     placedLights.forEach(l => {
         let lx = l.x*tileSize+offX+20, ly = l.y*tileSize+offY+20;
-        drawSprite(sprites.lampOn, lx-20, ly-20, 40, 40, "transparent"); // Tegn selve lampen "på"
-        let lG = tCtx.createRadialGradient(lx, ly, 20, lx, ly, 160);
+        let lG = tCtx.createRadialGradient(lx, ly, 10, lx, ly, 160);
         lG.addColorStop(0, "white"); lG.addColorStop(1, "transparent");
         tCtx.fillStyle = lG; tCtx.beginPath(); tCtx.arc(lx, ly, 160, 0, Math.PI*2); tCtx.fill();
     });
