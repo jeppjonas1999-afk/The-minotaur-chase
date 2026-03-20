@@ -1,123 +1,235 @@
 <!DOCTYPE html>
-<html>
+<html lang="no">
 <head>
-    <title>2D Labyrint - Top Down</title>
+    <meta charset="UTF-8">
+    <title>2D Labyrint - Among Us Skygger</title>
     <style>
-        body { margin: 0; background: black; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        canvas { border: 2px solid #333; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; pointer-events: none; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+        
+        /* Spill-lerret */
+        canvas { display: block; }
+        
+        /* Hovedmeny */
+        #menu {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10;
+        }
+        .menu-box {
+            background: #222; padding: 40px; border: 2px solid #555; border-radius: 10px;
+            text-align: center; width: 300px;
+        }
+        select, button {
+            width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 20px;
+            background: #333; color: white; border: 1px solid #777; font-size: 16px; cursor: pointer;
+        }
+        button { background: #4CAF50; font-weight: bold; border: none; transition: 0.2s; }
+        button:hover { background: #45a049; }
+
+        /* UI mens man spiller */
+        #ui { position: absolute; top: 10px; left: 10px; display: none; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div id="ui">Bruk piltaster eller WASD for å gå. Trykk E ved døra.</div>
+
+    <div id="menu">
+        <div class="menu-box">
+            <h2>LABYRINT</h2>
+            
+            <label>Kartstørrelse:</label>
+            <select id="mapSizeSelect">
+                <option value="11">Liten (22x22 ruter)</option>
+                <option value="15" selected>Medium (30x30 ruter)</option>
+                <option value="25">Stor (50x50 ruter)</option>
+            </select>
+
+            <label>Vanskelighetsgrad (Synsfelt):</label>
+            <select id="difficultySelect">
+                <option value="12">Lett (Stort lys)</option>
+                <option value="8" selected>Normal (Medium lys)</option>
+                <option value="5">Vanskelig (Klaustrofobisk)</option>
+            </select>
+
+            <button onclick="startGame()">START SPILL</button>
+        </div>
+    </div>
+
+    <div id="ui">Bruk WASD/Piltaster. Trykk E for å sjekke bak deg.</div>
     <canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
-// --- INNSTILLINGER ---
-const tileSize = 40;       // Størrelse på hver rute
-const viewDist = 3;        // Hvor mange ruter man ser (Synsfelt)
-const mapSize = 15;        // 15x15 labyrint (Level 3 skala)
-canvas.width = 600;        // Skjermstørrelse
-canvas.height = 600;
-
-// --- GENERER KART (0=vei, 1=vegg) ---
 let grid = [];
-for(let y=0; y<mapSize; y++) {
-    grid[y] = [];
-    for(let x=0; x<mapSize; x++) grid[y][x] = 1;
+let player = { x: 1, y: 1 };
+let tileSize = 40;
+let viewDist = 8; 
+let mapSize = 30; // Blir oppdatert av menyen
+
+// --- START SPILL-LOGIKK ---
+function startGame() {
+    document.getElementById("menu").style.display = "none";
+    document.getElementById("ui").style.display = "block";
+    
+    // Hent verdier fra menyen
+    let baseSize = parseInt(document.getElementById("mapSizeSelect").value);
+    viewDist = parseInt(document.getElementById("difficultySelect").value);
+    mapSize = baseSize * 2; // Ganger med 2 for å gjøre gangene bredere!
+
+    resize();
+    generateMap(baseSize);
+    
+    // Plasser spilleren nede til venstre (i et åpent gulv)
+    player.x = 2;
+    player.y = mapSize - 3;
+
+    draw();
 }
 
-function carve(x, y) {
-    grid[y][x] = 0;
-    let dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random() - 0.5);
-    for(let [dx, dy] of dirs) {
-        let nx = x + dx, ny = y + dy;
-        if(ny>0 && ny<mapSize-1 && nx>0 && nx<mapSize-1 && grid[ny][nx] == 1) {
-            grid[y + dy/2][x + dx/2] = 0;
-            carve(nx, ny);
+window.addEventListener("resize", resize);
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    draw();
+}
+
+// --- GENERER KART (Med dobbel bredde) ---
+function generateMap(baseSize) {
+    // 1. Lag en standard 1-rute bred labyrint
+    let baseGrid = Array.from({length: baseSize}, () => Array(baseSize).fill(1));
+    
+    function carve(x, y) {
+        baseGrid[y][x] = 0;
+        let dirs = [[0,-2], [0,2], [-2,0], [2,0]].sort(() => Math.random() - 0.5);
+        for(let [dx, dy] of dirs) {
+            let nx = x + dx, ny = y + dy;
+            if(ny > 0 && ny < baseSize-1 && nx > 0 && nx < baseSize-1 && baseGrid[ny][nx] === 1) {
+                baseGrid[y + dy/2][x + dx/2] = 0;
+                carve(nx, ny);
+            }
+        }
+    }
+    carve(1, baseSize-2);
+
+    // 2. Skaler den opp x2 for å lage 2-ruter brede ganger!
+    grid = [];
+    for(let y = 0; y < mapSize; y++) {
+        grid[y] = [];
+        for(let x = 0; x < mapSize; x++) {
+            grid[y][x] = baseGrid[Math.floor(y/2)][Math.floor(x/2)];
         }
     }
 }
-carve(1, mapSize-2); // Start nederst til venstre
 
-// Lag et 3x3 åpent rom i midten (Istedenfor 10x10 for å passe dette mappet)
-const mid = Math.floor(mapSize/2);
-for(let y=mid-1; y<=mid+1; y++) {
-    for(let x=mid-1; x<=mid+1; x++) grid[y][x] = 0;
-}
-
-// --- SPILLER ---
-let player = { x: 1, y: mapSize-2 };
-
-// --- INPUT ---
+// --- INPUT (Bevegelse) ---
 window.addEventListener("keydown", e => {
+    if(document.getElementById("menu").style.display !== "none") return; // Stopp bevegelse i meny
+
     let nextX = player.x;
     let nextY = player.y;
-    if(e.key.toLowerCase() === "w" || e.key === "ArrowUp") nextY--;
-    if(e.key.toLowerCase() === "s" || e.key === "ArrowDown") nextY++;
-    if(e.key.toLowerCase() === "a" || e.key === "ArrowLeft") nextX--;
-    if(e.key.toLowerCase() === "d" || e.key === "ArrowRight") nextX++;
     
-    if(e.key.toLowerCase() === "e") {
-        if(player.y === mapSize-2 && player.x === 1) alert("Den er låst bak deg!");
+    if(e.key === "w" || e.key === "ArrowUp") nextY--;
+    if(e.key === "s" || e.key === "ArrowDown") nextY++;
+    if(e.key === "a" || e.key === "ArrowLeft") nextX--;
+    if(e.key === "d" || e.key === "ArrowRight") nextX++;
+    
+    if(e.key === "e") {
+        if(player.y >= mapSize-4 && player.x <= 3) alert("Utgangen er blokkert!");
     }
 
-    // Kollisjonssjekk
+    // Hvis den nye posisjonen er gulv (0), flytt spilleren
     if(grid[nextY] && grid[nextY][nextX] === 0) {
         player.x = nextX;
         player.y = nextY;
+        draw();
     }
-    draw();
 });
 
-// --- TEGNING ---
+// --- TEGNING OG AMONG US SKYGGER ---
 function draw() {
-    ctx.fillStyle = "black";
+    if(!grid.length) return;
+
+    // Fyll bakgrunnen
+    ctx.fillStyle = "#111"; // Gulvfarge
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    for(let y=0; y<mapSize; y++) {
-        for(let x=0; x<mapSize; x++) {
-            // Beregn avstand til spiller (Fog of War)
-            let dist = Math.sqrt((x-player.x)**2 + (y-player.y)**2);
-            
-            if(dist < viewDist) {
-                // Tegn det vi ser
-                let screenX = centerX + (x - player.x) * tileSize - tileSize/2;
-                let screenY = centerY + (y - player.y) * tileSize - tileSize/2;
+    // 1. Tegn kartet (Vegger)
+    for(let y = 0; y < mapSize; y++) {
+        for(let x = 0; x < mapSize; x++) {
+            let screenX = centerX + (x - player.x) * tileSize - tileSize/2;
+            let screenY = centerY + (y - player.y) * tileSize - tileSize/2;
 
-                ctx.fillStyle = grid[y][x] === 1 ? "#333" : "#111";
+            if(grid[y][x] === 1) {
+                ctx.fillStyle = "#444";
                 ctx.fillRect(screenX, screenY, tileSize, tileSize);
-                
-                // Tegn "vegg-kant"
-                if(grid[y][x] === 1) {
-                    ctx.strokeStyle = "#444";
-                    ctx.strokeRect(screenX, screenY, tileSize, tileSize);
-                }
+                ctx.strokeStyle = "#222";
+                ctx.strokeRect(screenX, screenY, tileSize, tileSize);
             }
         }
     }
 
-    // Tegn spiller (i midten av skjermen)
-    ctx.fillStyle = "cyan";
+    // 2. Tegn Spilleren
+    ctx.fillStyle = "#00ffcc";
     ctx.beginPath();
-    ctx.arc(centerX, centerY, tileSize/3, 0, Math.PI*2);
+    ctx.arc(centerX, centerY, tileSize/2.5, 0, Math.PI*2);
     ctx.fill();
-    
-    // Legg på et "skygge-lag" over alt for å gjøre det mykere
-    let gradient = ctx.createRadialGradient(centerX, centerY, tileSize, centerX, centerY, tileSize * viewDist);
-    gradient.addColorStop(0, "transparent");
-    gradient.addColorStop(1, "black");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0,0, canvas.width, canvas.height);
-}
 
-draw();
+    // 3. RAYCASTING ("Among Us" dynamisk lys)
+    // Vi tegner først et helt svart lag over alt...
+    let shadowCanvas = document.createElement("canvas");
+    shadowCanvas.width = canvas.width;
+    shadowCanvas.height = canvas.height;
+    let sCtx = shadowCanvas.getContext("2d");
+    
+    sCtx.fillStyle = "black";
+    sCtx.fillRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+
+    // ...så "visker" vi ut det svarte der lyset treffer!
+    sCtx.globalCompositeOperation = "destination-out";
+    sCtx.beginPath();
+    sCtx.moveTo(centerX, centerY);
+
+    // Skyt ut stråler i 360 grader (gir en myk sirkelformet skygge)
+    for(let angle = 0; angle < Math.PI * 2; angle += 0.02) {
+        let rayX = player.x;
+        let rayY = player.y;
+        let dx = Math.cos(angle);
+        let dy = Math.sin(angle);
+        let dist = 0;
+
+        // Strålen går fremover i små steg til den treffer en vegg eller når maks rekkevidde
+        while(dist < viewDist) {
+            rayX += dx * 0.1;
+            rayY += dy * 0.1;
+            dist += 0.1;
+
+            let gridX = Math.floor(rayX + 0.5);
+            let gridY = Math.floor(rayY + 0.5);
+
+            // Stopp strålen hvis den treffer vegg (1) eller utenfor kartet
+            if(grid[gridY] === undefined || grid[gridY][gridX] === 1) {
+                break;
+            }
+        }
+        sCtx.lineTo(centerX + (rayX - player.x) * tileSize, centerY + (rayY - player.y) * tileSize);
+    }
+    sCtx.fill();
+
+    // Legg til en gradient for å få lyset til å fade ut på kantene (som en lommelykt)
+    sCtx.globalCompositeOperation = "source-over";
+    let gradient = sCtx.createRadialGradient(centerX, centerY, tileSize, centerX, centerY, viewDist * tileSize);
+    gradient.addColorStop(0, "rgba(0,0,0,0)");
+    gradient.addColorStop(1, "rgba(0,0,0,1)");
+    sCtx.fillStyle = gradient;
+    sCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Til slutt, lim skygge-laget oppå hovedspillet
+    ctx.drawImage(shadowCanvas, 0, 0);
+}
 </script>
 </body>
 </html>
