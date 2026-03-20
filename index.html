@@ -11,6 +11,8 @@
         .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; }
         h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; margin: 0; }
         
+        #menu-tip { color: #666; font-size: 11px; margin-bottom: 20px; min-height: 1.2em; text-transform: uppercase; }
+
         select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 10px; cursor: pointer; font-size: 16px; }
         button:hover { background: #300; border-color: #f00; }
 
@@ -34,7 +36,7 @@
         #prompt { position: absolute; bottom: 20%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border: 1px solid #444; display: none; z-index: 50; }
     </style>
 </head>
-<body>
+<body onload="setRandomTip()">
 
     <div id="sniff-alert">The minotaur is sniffing around... Run!</div>
     <div id="ui-status">Cooldown: KLAR</div>
@@ -42,9 +44,9 @@
     <div id="menu" class="overlay">
         <div class="box">
             <h1>MINOTAUR</h1>
-            <p style="color: #666; font-size: 11px; margin-bottom: 20px;">GJEM DEG I DE GRØNNE SONENE</p>
+            <p id="menu-tip">Laster tips...</p>
             <select id="size">
-                <option value="15">LITEN</option>
+                <option value="15">LITEN (KOMPAKT)</option>
                 <option value="25" selected>STOR</option>
                 <option value="45">DIGERT</option>
             </select>
@@ -89,17 +91,34 @@ let monster = {
 };
 let items = [], placedLights = [], hideSpots = [], exit = {x:0, y:0};
 
-const diffSettings = {
-    easy: { mSpeed: 0.8, abMin: 60000, abMax: 90000, spots: 5, loot: 20 },
-    medium: { mSpeed: 1.1, abMin: 45000, abMax: 75000, spots: 10, loot: 35 },
-    hard: { mSpeed: 1.7, abMin: 20000, abMax: 45000, spots: 25, loot: 60 }
+// Balansering av items og søppelkasser
+const mapSettings = {
+    15: { loot: 20, spots: 5 },
+    25: { loot: 80, spots: 10 },
+    45: { loot: 100, spots: 25 }
 };
 
-let currentSettings;
+const diffSettings = {
+    easy: { mSpeed: 0.8, abMin: 60000, abMax: 90000 },
+    medium: { mSpeed: 1.1, abMin: 45000, abMax: 75000 },
+    hard: { mSpeed: 1.7, abMin: 20000, abMax: 45000 }
+};
+
+function setRandomTip() {
+    const tips = [
+        "Gjem deg i de grønne gjemmestedene når minotauren lukter!",
+        "Når minotauren lukter så blir han omringet av piler!",
+        "Bruk lampene og lyktene du finner!",
+        "Søppelkasser har en svak glød som hjelper deg å finne dem."
+    ];
+    document.getElementById("menu-tip").innerText = tips[Math.floor(Math.random() * tips.length)];
+}
 
 function start() {
     const s = parseInt(document.getElementById("size").value);
-    currentSettings = diffSettings[document.getElementById("diff").value];
+    const mConf = mapSettings[s];
+    const dConf = diffSettings[document.getElementById("diff").value];
+    
     generateMaze(s);
     
     player.gridX = 1; player.gridY = grid.length - 2;
@@ -110,18 +129,17 @@ function start() {
     if(grid[monster.gridY][monster.gridX] === 1) monster.gridX++;
     monster.renderX = monster.gridX * tileSize; monster.renderY = monster.gridY * tileSize;
     monster.targetX = monster.gridX; monster.targetY = monster.gridY;
-    monster.baseSpeedMult = currentSettings.mSpeed;
+    monster.baseSpeedMult = dConf.mSpeed;
     
-    spawnExtras(s);
-    setNextAbility(performance.now());
+    spawnExtras(mConf.loot, mConf.spots);
+    setNextAbility(performance.now(), dConf);
     document.getElementById("menu").style.display = "none";
     isRunning = true;
     requestAnimationFrame(loop);
 }
 
-function setNextAbility(now) {
-    const delay = Math.random() * (currentSettings.abMax - currentSettings.abMin) + currentSettings.abMin;
-    monster.nextAbilityTime = now + delay;
+function setNextAbility(now, conf) {
+    monster.nextAbilityTime = now + (Math.random() * (conf.abMax - conf.abMin) + conf.abMin);
 }
 
 function generateMaze(size) {
@@ -138,44 +156,38 @@ function generateMaze(size) {
         }
     }
     walk(1, 1);
-    exit = { x: dim - 2, y: 1 }; grid[exit.y][exit.x] = 0;
+    exit = { x: dim - 2, y: 1 };
 }
 
-function spawnExtras(size) {
+function spawnExtras(lootCount, spotCount) {
     items = []; hideSpots = [];
-    // Loot (Lykter/Syn)
-    for(let i=0; i < currentSettings.loot; i++) {
-        let rx, ry;
-        do { rx = Math.floor(Math.random()*grid[0].length); ry = Math.floor(Math.random()*grid.length); } 
-        while(grid[ry][rx] === 1 || (rx === player.gridX && ry === player.gridY));
-        items.push({x: rx, y: ry, type: Math.random() > 0.4 ? 'orange' : 'yellow'});
+    let dim = grid.length;
+    
+    // Gjemmesteder først
+    for(let i=0; i<spotCount; i++) {
+        let x, y;
+        do { x = Math.floor(Math.random()*dim); y = Math.floor(Math.random()*dim); } 
+        while(grid[y][x] === 1 || (x === player.gridX && y === player.gridY));
+        hideSpots.push({x, y});
     }
-    // Gjemmesteder
-    for(let i=0; i < currentSettings.spots; i++) {
-        let rx, ry;
-        do { rx = Math.floor(Math.random()*grid[0].length); ry = Math.floor(Math.random()*grid.length); } 
-        while(grid[ry][rx] === 1 || (rx === player.gridX && ry === player.gridY));
-        hideSpots.push({x: rx, y: ry});
+    // Items etterpå
+    for(let i=0; i<lootCount; i++) {
+        let x, y;
+        do { x = Math.floor(Math.random()*dim); y = Math.floor(Math.random()*dim); } 
+        while(grid[y][x] === 1 || hideSpots.some(s=>s.x===x && s.y===y));
+        items.push({x, y, type: Math.random() > 0.4 ? 'orange' : 'yellow'});
     }
 }
 
 function update(now) {
     if (!isRunning) return;
+    const dConf = diffSettings[document.getElementById("diff").value];
 
-    // --- ABILITY ---
     if (now > monster.nextAbilityTime && !monster.abilityActive) {
         monster.abilityActive = true;
         monster.waitEnd = now + 2500; 
-        
-        // Hvis spilleren er gjemt, "bommer" minotauren på lukten
-        if (player.isHiding) {
-            monster.scentX = -1;
-            monster.scentY = -1;
-        } else {
-            monster.scentX = player.gridX; 
-            monster.scentY = player.gridY;
-        }
-        
+        if (player.isHiding) { monster.scentX = -1; monster.scentY = -1; } 
+        else { monster.scentX = player.gridX; monster.scentY = player.gridY; }
         document.getElementById("sniff-alert").style.display = "block";
         setTimeout(() => {
             if (monster.scentX !== -1) monster.speedBoost = 2.0;
@@ -184,30 +196,19 @@ function update(now) {
     }
 
     if (monster.scentX !== -1 && monster.gridX === monster.scentX && monster.gridY === monster.scentY) {
-        monster.abilityActive = false;
-        monster.speedBoost = 1.0;
-        monster.scentX = -1;
-        setNextAbility(performance.now());
+        monster.abilityActive = false; monster.speedBoost = 1.0; monster.scentX = -1;
+        setNextAbility(performance.now(), dConf);
     } else if (monster.abilityActive && monster.scentX === -1 && now > monster.waitEnd + 2000) {
-        // Avslutt lukting hvis han ble lurt
-        monster.abilityActive = false;
-        setNextAbility(performance.now());
+        monster.abilityActive = false; setNextAbility(performance.now(), dConf);
     }
 
-    // --- SPESIAL: GJEMMING ---
-    if (player.isHiding) {
-        if (now > player.hideEnd) {
-            player.isHiding = false;
-            player.hideCooldown = now + 15000;
-        }
+    if (player.isHiding && now > player.hideEnd) {
+        player.isHiding = false; player.hideCooldown = now + 15000;
     }
 
-    // UI Status Update
     const cd = Math.max(0, Math.ceil((player.hideCooldown - now) / 1000));
     document.getElementById("ui-status").innerText = player.isHiding ? "GJEMT!" : (cd > 0 ? `Cooldown: ${cd}s` : "KLAR");
-    document.getElementById("ui-status").style.color = player.isHiding ? "#0f0" : (cd > 0 ? "#f66" : "#fff");
 
-    // Spiller Bevegelse (Kun hvis ikke gjemt)
     if (!player.isHiding) {
         if (!player.isMoving) {
             let dx = 0, dy = 0;
@@ -232,31 +233,21 @@ function update(now) {
 
     // Monster AI
     if (!monster.isMoving && now > monster.waitEnd) {
-        let targetX = monster.scentX !== -1 ? monster.scentX : player.gridX;
-        let targetY = monster.scentY !== -1 ? monster.scentY : player.gridY;
-
-        let queue = [{x: monster.gridX, y: monster.gridY, path: []}];
-        let visited = new Set([`${monster.gridX},${monster.gridY}`]);
-        let next = null;
-        while(queue.length > 0) {
-            let curr = queue.shift();
-            if(curr.x === targetX && curr.y === targetY) { next = curr.path[0]; break; }
+        let tx = monster.scentX !== -1 ? monster.scentX : player.gridX;
+        let ty = monster.scentY !== -1 ? monster.scentY : player.gridY;
+        let q = [{x: monster.gridX, y: monster.gridY, p: []}], v = new Set([`${monster.gridX},${monster.gridY}`]), n = null;
+        while(q.length > 0) {
+            let c = q.shift();
+            if(c.x === tx && c.y === ty) { n = c.p[0]; break; }
             [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx, dy]) => {
-                let nx = curr.x + dx, ny = curr.y + dy;
-                if(grid[ny] && grid[ny][nx] === 0 && !visited.has(`${nx},${ny}`)) {
-                    visited.add(`${nx},${ny}`);
-                    queue.push({x: nx, y: ny, path: [...curr.path, {x: nx, y: ny}]});
+                let nx = c.x + dx, ny = c.y + dy;
+                if(grid[ny] && grid[ny][nx] === 0 && !v.has(`${nx},${ny}`)) {
+                    v.add(`${nx},${ny}`); q.push({x: nx, y: ny, p: [...c.p, {x: nx, y: ny}]});
                 }
             });
         }
-        if (next) {
-            monster.isMoving = true; monster.moveStart = now;
-            monster.targetX = next.x; monster.targetY = next.y;
-            if (monster.scentX === -1 && Math.random() < 0.5) {
-                let paths = 0;
-                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx, dy]) => { if(grid[monster.gridY+dy] && grid[monster.gridY+dy][monster.gridX+dx] === 0) paths++; });
-                if(paths > 2) monster.waitEnd = now + 750;
-            }
+        if (n) {
+            monster.isMoving = true; monster.moveStart = now; monster.targetX = n.x; monster.targetY = n.y;
         }
     } else if (monster.isMoving) {
         let t = Math.min((now - monster.moveStart) / (moveTime / (monster.baseSpeedMult * monster.speedBoost)), 1);
@@ -265,21 +256,13 @@ function update(now) {
         if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
-    // Jumpscare sjekk (Kun hvis ikke gjemt)
-    if (!player.isHiding) {
-        if (Math.abs(player.renderX - monster.renderX) < 25 && Math.abs(player.renderY - monster.renderY) < 25) { 
-            isRunning = false; document.getElementById("jumpscare").style.display = "flex";
-            setTimeout(() => location.reload(), 2000);
-        }
+    if (!player.isHiding && Math.abs(player.renderX - monster.renderX) < 25 && Math.abs(player.renderY - monster.renderY) < 25) { 
+        isRunning = false; document.getElementById("jumpscare").style.display = "flex";
+        setTimeout(() => location.reload(), 2000);
     }
     if (player.gridX === exit.x && player.gridY === exit.y) { isRunning = false; document.getElementById("victory-screen").style.display = "flex"; }
-    
     monster.rotation += 0.07;
-    
-    // Prompt sjekk
-    let onLoot = items.some(it => it.x === player.gridX && it.y === player.gridY);
-    let onSpot = hideSpots.some(s => s.x === player.gridX && s.y === player.gridY);
-    document.getElementById("prompt").style.display = (onLoot || onSpot) ? "block" : "none";
+    document.getElementById("prompt").style.display = (items.some(it=>it.x===player.gridX && it.y===player.gridY) || hideSpots.some(s=>s.x===player.gridX && s.y===player.gridY)) ? "block" : "none";
 }
 
 function loop(now) {
@@ -289,23 +272,18 @@ function loop(now) {
     const offX = canvas.width/2 - player.renderX - 20; const offY = canvas.height/2 - player.renderY - 20;
 
     ctx.fillStyle = "#050505"; ctx.fillRect(0,0, canvas.width, canvas.height);
-    
-    // Tegn vegger
     for(let y=0; y<grid.length; y++) {
         for(let x=0; x<grid[y].length; x++) {
             if(grid[y][x] === 1) { ctx.fillStyle = "#1a1a1a"; ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize); }
         }
     }
-
-    // Tegn HideSpots
+    
+    // Tegn gjemmesteder (søppelkasser)
     hideSpots.forEach(s => {
-        ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2;
-        ctx.strokeRect(s.x*tileSize+offX+5, s.y*tileSize+offY+5, tileSize-10, tileSize-10);
-        ctx.fillStyle = "rgba(0,255,0,0.1)";
+        ctx.fillStyle = "rgba(0, 100, 0, 0.4)";
         ctx.fillRect(s.x*tileSize+offX+5, s.y*tileSize+offY+5, tileSize-10, tileSize-10);
     });
-    
-    // Tegn Loot
+
     items.forEach(it => {
         ctx.fillStyle = it.type === 'orange' ? "#ffa500" : "#ffff00";
         ctx.beginPath(); ctx.arc(it.x*tileSize+offX+20, it.y*tileSize+offY+20, 8, 0, Math.PI*2); ctx.fill();
@@ -315,32 +293,44 @@ function loop(now) {
     ctx.fillStyle = monster.speedBoost > 1 ? "#f00" : "#600";
     ctx.beginPath(); ctx.arc(monster.renderX+offX+20, monster.renderY+offY+20, 14, 0, Math.PI*2); ctx.fill();
     
-    // Spiller (Skjul hvis gjemt)
     if (!player.isHiding) {
         ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
     }
 
-    // Fog of War
+    // Lys-system (inkluderer svak glød fra søppelkasser)
     let temp = document.createElement('canvas'); temp.width = canvas.width; temp.height = canvas.height;
     let tCtx = temp.getContext('2d');
     tCtx.fillStyle = "rgba(0,0,0,0.98)"; tCtx.fillRect(0,0,canvas.width,canvas.height);
     tCtx.globalCompositeOperation = "destination-out";
+    
+    // Spillerlys
     let pG = tCtx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, player.visionRadius);
     pG.addColorStop(0, "white"); pG.addColorStop(1, "transparent");
     tCtx.fillStyle = pG; tCtx.beginPath(); tCtx.arc(canvas.width/2, canvas.height/2, player.visionRadius, 0, Math.PI*2); tCtx.fill();
+
+    // Lykter som er satt ut
     placedLights.forEach(l => {
         let lx = l.x*tileSize+offX+20, ly = l.y*tileSize+offY+20;
         let lG = tCtx.createRadialGradient(lx, ly, 10, lx, ly, 160);
-        lG.addColorStop(0, "white"); lG.addColorStop(1, "transparent");
+        lG.addColorStop(0, "rgba(255,255,255,1)"); lG.addColorStop(1, "transparent");
         tCtx.fillStyle = lG; tCtx.beginPath(); tCtx.arc(lx, ly, 160, 0, Math.PI*2); tCtx.fill();
     });
+
+    // SVAK GLØD FRA SØPPELKASSER (50% effektivitet / kortere rekkevidde)
+    hideSpots.forEach(s => {
+        let sx = s.x*tileSize+offX+20, sy = s.y*tileSize+offY+20;
+        let sG = tCtx.createRadialGradient(sx, sy, 5, sx, sy, 60);
+        sG.addColorStop(0, "rgba(255,255,255,0.4)"); // 40% styrke
+        sG.addColorStop(1, "transparent");
+        tCtx.fillStyle = sG; tCtx.beginPath(); tCtx.arc(sx, sy, 60, 0, Math.PI*2); tCtx.fill();
+    });
+
     ctx.drawImage(temp, 0, 0);
 
-    // X-RAY PILER (Vises alltid hvis aktiv)
     if (monster.abilityActive) {
-        const mx = monster.renderX + offX + 20; const my = monster.renderY + offY + 20;
+        const mx = monster.renderX + offX + 20, my = monster.renderY + offY + 20;
         ctx.save(); ctx.translate(mx, my); ctx.rotate(monster.rotation);
-        ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4; ctx.shadowBlur = 15; ctx.shadowColor = "red";
+        ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4;
         for(let i=0; i<4; i++) {
             ctx.rotate(Math.PI/2); ctx.beginPath();
             ctx.moveTo(50, -10); ctx.lineTo(60, 0); ctx.lineTo(50, 10); ctx.stroke();
@@ -355,19 +345,15 @@ window.onkeydown = e => keys[e.key.toLowerCase()] = true;
 window.onkeyup = e => {
     keys[e.key.toLowerCase()] = false;
     if(e.key.toLowerCase() === 'e') {
-        // Sjekk Loot
         let i = items.findIndex(it => it.x === player.gridX && it.y === player.gridY);
         if(i !== -1) {
             if(items[i].type === 'orange') placedLights.push({x: player.gridX, y: player.gridY});
             else player.visionRadius += 60;
-            items.splice(i, 1);
-            return;
+            items.splice(i, 1); return;
         }
-        // Sjekk Gjemmested
         let spot = hideSpots.some(s => s.x === player.gridX && s.y === player.gridY);
         if(spot && performance.now() > player.hideCooldown && !player.isHiding) {
-            player.isHiding = true;
-            player.hideEnd = performance.now() + 3000;
+            player.isHiding = true; player.hideEnd = performance.now() + 3000;
         }
     }
 };
