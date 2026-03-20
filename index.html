@@ -14,6 +14,13 @@
         select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 10px; cursor: pointer; font-size: 16px; }
         button:hover { background: #300; border-color: #f00; }
 
+        #sniff-alert { 
+            position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
+            color: #ff0000; font-size: 24px; font-weight: bold; letter-spacing: 2px;
+            text-shadow: 0 0 15px #f00; display: none; z-index: 200;
+            text-align: center; width: 100%;
+        }
+
         #jumpscare { position: absolute; inset: 0; background: #000; display: none; z-index: 1000; justify-content: center; align-items: center; overflow: hidden; }
         .scare-face { width: 100%; height: 100%; background: radial-gradient(circle, #f00 0%, #000 70%); display: flex; justify-content: center; align-items: center; animation: shake 0.1s infinite; }
         
@@ -25,10 +32,12 @@
 </head>
 <body>
 
+    <div id="sniff-alert">The minotaur is sniffing around... Run!</div>
+
     <div id="menu" class="overlay">
         <div class="box">
             <h1>MINOTAUR</h1>
-            <p style="color: #666; font-size: 11px;">PASS DEG NÅR PILENE SPINNER...</p>
+            <p style="color: #666; font-size: 11px; margin-bottom: 20px;">HAN FINNER DEG ALLTID</p>
             <select id="size">
                 <option value="15">LITEN</option>
                 <option value="25" selected>STOR</option>
@@ -138,15 +147,16 @@ function update(now) {
     if (now > monster.nextAbilityTime && !monster.abilityActive) {
         monster.abilityActive = true;
         monster.waitEnd = now + 2500; 
-        monster.scentX = player.gridX; // Låser lukten til din nåværende posisjon
+        monster.scentX = player.gridX; 
         monster.scentY = player.gridY;
+        document.getElementById("sniff-alert").style.display = "block";
         
         setTimeout(() => {
-            monster.speedBoost = 1.6; // Kraftig boost
+            monster.speedBoost = 2.0; // 2x fart som bedt om
+            document.getElementById("sniff-alert").style.display = "none";
         }, 2500);
     }
 
-    // Sjekk om han har nådd lukte-punktet
     if (monster.gridX === monster.scentX && monster.gridY === monster.scentY) {
         monster.abilityActive = false;
         monster.speedBoost = 1.0;
@@ -154,7 +164,7 @@ function update(now) {
         setNextAbility(performance.now());
     }
 
-    // Spillerkontroll
+    // Spiller
     if (!player.isMoving) {
         let dx = 0, dy = 0;
         if (keys['w'] || keys['arrowup']) dy = -1;
@@ -177,14 +187,12 @@ function update(now) {
 
     // Monster AI
     if (!monster.isMoving && now > monster.waitEnd) {
-        // Hvis han har en lukt, går han dit. Ellers går han til spilleren.
         let targetX = monster.scentX !== -1 ? monster.scentX : player.gridX;
         let targetY = monster.scentY !== -1 ? monster.scentY : player.gridY;
 
         let queue = [{x: monster.gridX, y: monster.gridY, path: []}];
         let visited = new Set([`${monster.gridX},${monster.gridY}`]);
         let next = null;
-
         while(queue.length > 0) {
             let curr = queue.shift();
             if(curr.x === targetX && curr.y === targetY) { next = curr.path[0]; break; }
@@ -199,8 +207,6 @@ function update(now) {
         if (next) {
             monster.isMoving = true; monster.moveStart = now;
             monster.targetX = next.x; monster.targetY = next.y;
-            
-            // 50% sjanse for pause i kryss (ikke i jakt)
             if (monster.scentX === -1 && Math.random() < 0.5) {
                 let paths = 0;
                 [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx, dy]) => { if(grid[monster.gridY+dy] && grid[monster.gridY+dy][monster.gridX+dx] === 0) paths++; });
@@ -220,7 +226,7 @@ function update(now) {
     }
     if (player.gridX === exit.x && player.gridY === exit.y) { isRunning = false; document.getElementById("victory-screen").style.display = "flex"; }
     
-    monster.rotation += 0.15; // Roteringsfart for pilene
+    monster.rotation += 0.07; // Halvert rotasjonsfart (fra 0.15)
 }
 
 function loop(now) {
@@ -229,7 +235,6 @@ function loop(now) {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     const offX = canvas.width/2 - player.renderX - 20; const offY = canvas.height/2 - player.renderY - 20;
 
-    // 1. Kart og objekter
     ctx.fillStyle = "#050505"; ctx.fillRect(0,0, canvas.width, canvas.height);
     for(let y=0; y<grid.length; y++) {
         for(let x=0; x<grid[y].length; x++) {
@@ -245,7 +250,6 @@ function loop(now) {
     ctx.beginPath(); ctx.arc(monster.renderX+offX+20, monster.renderY+offY+20, 14, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
 
-    // 2. Mørke-maske (Fog of War)
     let temp = document.createElement('canvas'); temp.width = canvas.width; temp.height = canvas.height;
     let tCtx = temp.getContext('2d');
     tCtx.fillStyle = "rgba(0,0,0,0.98)"; tCtx.fillRect(0,0,canvas.width,canvas.height);
@@ -261,13 +265,13 @@ function loop(now) {
     });
     ctx.drawImage(temp, 0, 0);
 
-    // 3. X-RAY PILER (Tegnes ETTER mørket slik at de synes gjennom alt)
+    // X-RAY PILER (V-form, uten stamme, saktere rotasjon)
     if (monster.abilityActive) {
         const mx = monster.renderX + offX + 20; const my = monster.renderY + offY + 20;
         ctx.save();
         ctx.translate(mx, my);
         ctx.rotate(monster.rotation);
-        ctx.strokeStyle = "#f00";
+        ctx.strokeStyle = "#ff0000";
         ctx.lineWidth = 4;
         ctx.shadowBlur = 15;
         ctx.shadowColor = "red";
@@ -275,13 +279,14 @@ function loop(now) {
         for(let i=0; i<4; i++) {
             ctx.rotate(Math.PI/2);
             ctx.beginPath();
-            ctx.moveTo(30, 0); ctx.lineTo(60, 0); // Linje ut
-            ctx.moveTo(50, -10); ctx.lineTo(60, 0); ctx.lineTo(50, 10); // Pilspiss
+            // Tegner bare pilspissen (to linjer som danner en vinkel)
+            ctx.moveTo(50, -10); 
+            ctx.lineTo(60, 0); 
+            ctx.lineTo(50, 10);
             ctx.stroke();
         }
         ctx.restore();
     }
-
     requestAnimationFrame(loop);
 }
 
