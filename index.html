@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaurens Labyrint: AI Oppgradering</title>
+    <title>Minotaurens Labyrint: Power-ups</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         canvas { display: block; }
@@ -16,6 +16,7 @@
         select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 8px; cursor: pointer; font-size: 14px; }
         button { background: #fff; color: #000; font-weight: bold; margin-top: 30px; border: none; text-transform: uppercase; }
         button:hover { background: #ccc; }
+        #stats { position: absolute; top: 10px; right: 10px; color: #555; font-size: 12px; text-align: right; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -29,7 +30,7 @@
                 <option value="25" selected>STOR</option>
                 <option value="35">ENORM</option>
             </select>
-            <label>Minotaur Instinkt</label>
+            <label>Vanskelighetsgrad</label>
             <select id="diff">
                 <option value="easy">ENKEL</option>
                 <option value="medium" selected>MEDIUM</option>
@@ -39,6 +40,7 @@
         </div>
     </div>
 
+    <div id="stats">ORANSJE LAMPE: PLASSERES AUTOMATISK<br>GUL LAMPE: PERMANENT SYN +1.5</div>
     <canvas id="game"></canvas>
 
 <script>
@@ -47,17 +49,19 @@ const ctx = canvas.getContext("2d");
 
 let grid = [];
 const tileSize = 40;
-const moveTime = 350; // 0.35 sekunder per rute for spiller
+const moveTime = 350;
 
-let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0 };
+let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0, visionRadius: 200 };
 let monster = { 
     gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0, 
-    baseSpeedMult: 1, precision: 15, state: 'hunting', lastSeenX: 0, lastSeenY: 0, huntTarget: null
+    baseSpeedMult: 1, precision: 19, state: 'hunting', lastSeenX: 0, lastSeenY: 0, huntTarget: null
 };
+
 let exit = { x: 0, y: 0 };
+let items = []; // {x, y, type: 'orange' | 'yellow'}
+let placedLights = []; // {x, y} for oransje lamper
 let isRunning = false;
 
-// Presisjon er økt med ~25% fra forrige versjon (30->38, 15->19, 7->9)
 const diffSettings = {
     easy:   { mSpeed: 0.8, precision: 38 }, 
     medium: { mSpeed: 1.05, precision: 19 }, 
@@ -74,6 +78,7 @@ function start() {
     player.gridX = 1; player.gridY = grid.length - 2;
     player.targetX = player.gridX; player.targetY = player.gridY;
     player.renderX = player.gridX * tileSize; player.renderY = player.gridY * tileSize;
+    player.visionRadius = 200;
 
     monster.gridX = Math.floor(grid[0].length / 2);
     monster.gridY = Math.floor(grid.length / 2);
@@ -84,6 +89,10 @@ function start() {
     monster.baseSpeedMult = settings.mSpeed;
     monster.precision = settings.precision;
     monster.state = 'hunting';
+    
+    items = [];
+    placedLights = [];
+    spawnItems(s);
 
     document.getElementById("menu").style.display = "none";
     isRunning = true;
@@ -109,13 +118,24 @@ function generateComplexMaze(size) {
     grid[exit.y][exit.x] = 0;
 }
 
+function spawnItems(size) {
+    let count = size === 15 ? 5 : (size === 25 ? 12 : 20);
+    for(let i=0; i<count; i++) {
+        let rx, ry;
+        do {
+            rx = Math.floor(Math.random() * grid[0].length);
+            ry = Math.floor(Math.random() * grid.length);
+        } while(grid[ry][rx] === 1 || (rx === player.gridX && ry === player.gridY));
+        
+        let type = Math.random() > 0.3 ? 'orange' : 'yellow';
+        items.push({x: rx, y: ry, type: type});
+    }
+}
+
 const keys = {};
 window.onkeydown = e => keys[e.key.toLowerCase()] = true;
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
-// --- AI HJELPEFUNKSJONER ---
-
-// Sjekker om det er fri sikt i rette ganger
 function hasLineOfSight(x1, y1, x2, y2) {
     if (x1 !== x2 && y1 !== y2) return false; 
     if (x1 === x2) {
@@ -129,28 +149,13 @@ function hasLineOfSight(x1, y1, x2, y2) {
     }
 }
 
-// Finner en lovlig rute i sirkelen rundt spilleren
-function getValidFloorNear(px, py, radius) {
-    for(let i=0; i<15; i++) {
-        let angle = Math.random() * Math.PI * 2;
-        let r = Math.random() * radius;
-        let tx = Math.floor(px + Math.cos(angle) * r);
-        let ty = Math.floor(py + Math.sin(angle) * r);
-        if (grid[ty] && grid[ty][tx] === 0) return {x: tx, y: ty};
-    }
-    return {x: px, y: py}; 
-}
-
-// Finn korteste vei via rutenett (Breadth-First Search)
 function getNextStep(startX, startY, targetX, targetY) {
     if(startX === targetX && startY === targetY) return null;
     let queue = [{x: startX, y: startY, path: []}];
     let visited = new Set([`${startX},${startY}`]);
-
     while(queue.length > 0) {
         let curr = queue.shift();
         if(curr.x === targetX && curr.y === targetY) return curr.path[0]; 
-
         let dirs = [[0,-1], [0,1], [-1,0], [1,0]];
         for(let [dx, dy] of dirs) {
             let nx = curr.x + dx, ny = curr.y + dy;
@@ -160,11 +165,10 @@ function getNextStep(startX, startY, targetX, targetY) {
             }
         }
     }
-    return null; // Fant ingen vei (burde ikke skje i en perfekt labyrint)
+    return null;
 }
 
 function update(now) {
-    // --- SPILLER ---
     if (!player.isMoving) {
         let dx = 0, dy = 0;
         if (keys['w'] || keys['arrowup']) dy = -1;
@@ -183,70 +187,58 @@ function update(now) {
         let t = Math.min((now - player.moveStart) / moveTime, 1);
         player.renderX = (player.gridX + (player.targetX - player.gridX) * t) * tileSize;
         player.renderY = (player.gridY + (player.targetY - player.gridY) * t) * tileSize;
-        if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
-    }
-
-    if (player.gridX === exit.x && player.gridY === exit.y) {
-        alert("DU SLAPP UT!"); location.reload();
-    }
-
-    // --- MONSTER AI ---
-    if (!monster.isMoving) {
-        // 1. Ser den deg?
-        let seesPlayer = hasLineOfSight(monster.gridX, monster.gridY, player.gridX, player.gridY);
-        if (seesPlayer) {
-            monster.state = 'chasing';
-            monster.lastSeenX = player.gridX;
-            monster.lastSeenY = player.gridY;
+        if (t === 1) { 
+            player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; 
+            // Sjekk items
+            items = items.filter(item => {
+                if(item.x === player.gridX && item.y === player.gridY) {
+                    if(item.type === 'orange') {
+                        placedLights.push({x: item.x, y: item.y});
+                    } else {
+                        player.visionRadius += 60; // 1.5 ruter (40*1.5)
+                    }
+                    return false;
+                }
+                return true;
+            });
         }
+    }
 
-        // 2. Velg destinasjon
+    if (player.gridX === exit.x && player.gridY === exit.y) { alert("DU SLAPP UT!"); location.reload(); }
+
+    // MONSTER
+    if (!monster.isMoving) {
+        let seesPlayer = hasLineOfSight(monster.gridX, monster.gridY, player.gridX, player.gridY);
+        if (seesPlayer) { monster.state = 'chasing'; monster.lastSeenX = player.gridX; monster.lastSeenY = player.gridY; }
+        
         let goalX, goalY;
         if (monster.state === 'chasing') {
-            goalX = monster.lastSeenX;
-            goalY = monster.lastSeenY;
-            // Mister synet når den når sist kjente posisjon
-            if (monster.gridX === goalX && monster.gridY === goalY && !seesPlayer) {
-                monster.state = 'hunting';
-                monster.huntTarget = null; // Tvinger ny jakt-sirkel
-            }
-        } 
-        
-        if (monster.state === 'hunting') {
-            // Finner et nytt sted i sirkelen hvis den ikke har ett, eller nettopp ankom forrige
+            goalX = monster.lastSeenX; goalY = monster.lastSeenY;
+            if (monster.gridX === goalX && monster.gridY === goalY && !seesPlayer) { monster.state = 'hunting'; monster.huntTarget = null; }
+        } else {
             if (!monster.huntTarget || (monster.gridX === monster.huntTarget.x && monster.gridY === monster.huntTarget.y)) {
-                monster.huntTarget = getValidFloorNear(player.gridX, player.gridY, monster.precision);
+                let angle = Math.random() * Math.PI * 2;
+                let r = Math.random() * monster.precision;
+                let tx = Math.floor(player.gridX + Math.cos(angle) * r);
+                let ty = Math.floor(player.gridY + Math.sin(angle) * r);
+                if(grid[ty] && grid[ty][tx] === 0) monster.huntTarget = {x: tx, y: ty};
             }
-            goalX = monster.huntTarget.x;
-            goalY = monster.huntTarget.y;
+            goalX = monster.huntTarget ? monster.huntTarget.x : player.gridX;
+            goalY = monster.huntTarget ? monster.huntTarget.y : player.gridY;
         }
 
-        // 3. Regn ut neste steg (Pathfinding)
         let nextStep = getNextStep(monster.gridX, monster.gridY, goalX, goalY);
-        
-        if (nextStep) {
-            monster.isMoving = true; 
-            monster.moveStart = now;
-            monster.targetX = nextStep.x; 
-            monster.targetY = nextStep.y;
-        } else {
-            // Fail-safe hvis den tilfeldigvis blir forvirret
-            monster.huntTarget = null; 
-        }
+        if (nextStep) { monster.isMoving = true; monster.moveStart = now; monster.targetX = nextStep.x; monster.targetY = nextStep.y; }
     } else {
-        // Hastighets-boost hvis den jager (+0.2)
         let currentSpeedMult = monster.baseSpeedMult + (monster.state === 'chasing' ? 0.2 : 0);
-        let mMoveTime = moveTime / currentSpeedMult;
-        
-        let t = Math.min((now - monster.moveStart) / mMoveTime, 1);
+        let t = Math.min((now - monster.moveStart) / (moveTime / currentSpeedMult), 1);
         monster.renderX = (monster.gridX + (monster.targetX - monster.gridX) * t) * tileSize;
         monster.renderY = (monster.gridY + (monster.targetY - monster.gridY) * t) * tileSize;
         if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
-    // --- KOLLISJON ---
     if (Math.sqrt((player.renderX - monster.renderX)**2 + (player.renderY - monster.renderY)**2) < tileSize * 0.5) {
-        alert("Minotauren tok deg i mørket!"); location.reload();
+        alert("Minotauren tok deg!"); location.reload();
     }
 }
 
@@ -267,17 +259,33 @@ function loop(now) {
         }
     }
 
-    ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX + 10, exit.y*tileSize+offY + 10, 20, 20);
+    // ITEMS
+    items.forEach(item => {
+        ctx.fillStyle = item.type === 'orange' ? "#ffa500" : "#ffff00";
+        ctx.beginPath(); ctx.arc(item.x*tileSize+offX+tileSize/2, item.y*tileSize+offY+tileSize/2, 6, 0, Math.PI*2); ctx.fill();
+    });
 
-    // Monsteret lyser knallrødt når det har oppdaget deg (Chasing)
-    ctx.fillStyle = monster.state === 'chasing' ? "#ff0000" : "#500"; 
+    ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX + 10, exit.y*tileSize+offY + 10, 20, 20);
+    ctx.fillStyle = monster.state === 'chasing' ? "#f00" : "#500"; 
     ctx.beginPath(); ctx.arc(monster.renderX+offX+tileSize/2, monster.renderY+offY+tileSize/2, tileSize/3, 0, Math.PI*2); ctx.fill();
-    
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 8, 0, Math.PI*2); ctx.fill();
 
-    let g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, 200);
-    g.addColorStop(0, "transparent"); g.addColorStop(1, "rgba(0,0,0,0.98)");
-    ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width, canvas.height);
+    // LYS-SYSTEM (Shadow mask)
+    ctx.globalCompositeOperation = "destination-in";
+    let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, player.visionRadius);
+    grad.addColorStop(0, "rgba(0,0,0,1)"); grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad; ctx.fillRect(0,0,canvas.width, canvas.height);
+
+    // Legg til lys fra oransje lamper
+    ctx.globalCompositeOperation = "source-over";
+    placedLights.forEach(light => {
+        let lx = light.x*tileSize+offX+tileSize/2;
+        let ly = light.y*tileSize+offY+tileSize/2;
+        let lGrad = ctx.createRadialGradient(lx, ly, 10, lx, ly, 160); // 4x4 område (tileSize*4 = 160)
+        lGrad.addColorStop(0, "rgba(255,165,0,0.3)");
+        lGrad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = lGrad; ctx.fillRect(lx-160, ly-160, 320, 320);
+    });
 
     requestAnimationFrame(loop);
 }
