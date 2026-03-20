@@ -1,188 +1,123 @@
 <!DOCTYPE html>
-<html lang="no">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSS Labyrint 2D</title>
+    <title>2D Labyrint - Top Down</title>
     <style>
-        :root {
-            /* Her definerer vi skalaen (Nivå 3 = 750px i denne skalaen) */
-            --map-size: 750px; 
-            --grid-cells: 50; /* Antall ruter i bredden */
-            --cell-size: calc(var(--map-size) / var(--grid-cells));
-        }
-
-        body {
-            margin: 0;
-            background: #000;
-            color: white;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* LOBBY LOGIKK */
-        #game-trigger, #interact-trigger { display: none; }
-
-        #lobby {
-            position: absolute;
-            z-index: 100;
-            background: #222;
-            padding: 20px;
-            border: 2px solid #555;
-            text-align: center;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        /* NÅR SPILLET STARTER */
-        #game-trigger:checked ~ #lobby { display: none; }
-        #game-trigger:checked ~ #game-viewport { display: block; }
-
-        /* VIEWPORT - Dette er "kameraet" ditt */
-        #game-viewport {
-            display: none;
-            width: 100vw;
-            height: 100vh;
-            overflow: auto; /* Gjør at man må lete/scrolle for å se kartet */
-            position: relative;
-            cursor: crosshair;
-        }
-
-        /* LABYRINT-KARTET */
-        .map-grid {
-            display: grid;
-            grid-template-columns: repeat(var(--grid-cells), var(--cell-size));
-            grid-template-rows: repeat(var(--grid-cells), var(--cell-size));
-            width: var(--map-size);
-            height: var(--map-size);
-            background: #111;
-            /* Plasserer spilleren i midten ved start */
-            margin: 50vh 50vw; 
-        }
-
-        /* VEGGER (Vi bruker mønster-gjentakelse for å simulere labyrint uten JS) */
-        .cell {
-            width: var(--cell-size);
-            height: var(--cell-size);
-            box-sizing: border-box;
-            border: 0.1px solid #222;
-        }
-
-        /* Dette simulerer en labyrint ved å fargelegge tilfeldige ruter */
-        .cell:nth-child(3n+1), .cell:nth-child(7n) {
-            background: #333; /* Vegg */
-        }
-
-        /* DET TOMME 10x10 ROMMET I MIDTEN */
-        /* Vi bruker CSS "Grid Area" for å tvinge midten til å være tom */
-        .center-room {
-            grid-column: 20 / 30; /* Ca midten av 50 ruter */
-            grid-row: 20 / 30;
-            background: #444 !important;
-            border: 2px solid #00ff00;
-            z-index: 2;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-        }
-
-        /* DØR BAK DEG */
-        .door {
-            width: 30px;
-            height: 10px;
-            background: brown;
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        /* INTERAKSJONSKNAPP (E / Mobil) */
-        .interact-btn {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: orange;
-            color: black;
-            padding: 20px;
-            border-radius: 50%;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 200;
-        }
-
-        /* DIALOGBOBLE */
-        .dialog {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            padding: 20px;
-            border: 2px solid white;
-            display: none;
-            z-index: 300;
-        }
-
-        #interact-trigger:checked ~ .dialog { display: block; }
-
-        /* SKALA-VELGER STIL */
-        .scale-option {
-            display: inline-block;
-            padding: 10px;
-            background: #444;
-            margin: 5px;
-            cursor: pointer;
-        }
+        body { margin: 0; background: black; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { border: 2px solid #333; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; pointer-events: none; }
     </style>
 </head>
 <body>
+    <div id="ui">Bruk piltaster eller WASD for å gå. Trykk E ved døra.</div>
+    <canvas id="game"></canvas>
 
-    <input type="checkbox" id="game-trigger">
-    <input type="checkbox" id="interact-trigger">
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-    <div id="lobby">
-        <h2>Labyrint Utforsker</h2>
-        <p>Velg Kartstørrelse (1-5)</p>
-        <div style="margin-bottom: 20px;">
-            <span class="scale-option">1</span>
-            <span class="scale-option">2</span>
-            <span class="scale-option" style="background: #00ff00; color: black;">3</span>
-            <span class="scale-option">4</span>
-            <span class="scale-option">5</span>
-        </div>
-        <label for="game-trigger" style="background: white; color: black; padding: 10px 20px; cursor: pointer; font-weight: bold;">START SPILL</label>
-    </div>
+// --- INNSTILLINGER ---
+const tileSize = 40;       // Størrelse på hver rute
+const viewDist = 3;        // Hvor mange ruter man ser (Synsfelt)
+const mapSize = 15;        // 15x15 labyrint (Level 3 skala)
+canvas.width = 600;        // Skjermstørrelse
+canvas.height = 600;
 
-    <div id="game-viewport">
-        <div class="map-grid">
-            <script>
-                // Jeg bruker en liten hjelpe-løkke kun for å slippe å skrive 2500 linjer med <div> manuelt, 
-                // men resultatet er ren HTML i browseren din.
-                for(let i=0; i<2500; i++) {
-                    document.write('<div class="cell"></div>');
-                }
-            </script>
+// --- GENERER KART (0=vei, 1=vegg) ---
+let grid = [];
+for(let y=0; y<mapSize; y++) {
+    grid[y] = [];
+    for(let x=0; x<mapSize; x++) grid[y][x] = 1;
+}
+
+function carve(x, y) {
+    grid[y][x] = 0;
+    let dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random() - 0.5);
+    for(let [dx, dy] of dirs) {
+        let nx = x + dx, ny = y + dy;
+        if(ny>0 && ny<mapSize-1 && nx>0 && nx<mapSize-1 && grid[ny][nx] == 1) {
+            grid[y + dy/2][x + dx/2] = 0;
+            carve(nx, ny);
+        }
+    }
+}
+carve(1, mapSize-2); // Start nederst til venstre
+
+// Lag et 3x3 åpent rom i midten (Istedenfor 10x10 for å passe dette mappet)
+const mid = Math.floor(mapSize/2);
+for(let y=mid-1; y<=mid+1; y++) {
+    for(let x=mid-1; x<=mid+1; x++) grid[y][x] = 0;
+}
+
+// --- SPILLER ---
+let player = { x: 1, y: mapSize-2 };
+
+// --- INPUT ---
+window.addEventListener("keydown", e => {
+    let nextX = player.x;
+    let nextY = player.y;
+    if(e.key.toLowerCase() === "w" || e.key === "ArrowUp") nextY--;
+    if(e.key.toLowerCase() === "s" || e.key === "ArrowDown") nextY++;
+    if(e.key.toLowerCase() === "a" || e.key === "ArrowLeft") nextX--;
+    if(e.key.toLowerCase() === "d" || e.key === "ArrowRight") nextX++;
+    
+    if(e.key.toLowerCase() === "e") {
+        if(player.y === mapSize-2 && player.x === 1) alert("Den er låst bak deg!");
+    }
+
+    // Kollisjonssjekk
+    if(grid[nextY] && grid[nextY][nextX] === 0) {
+        player.x = nextX;
+        player.y = nextY;
+    }
+    draw();
+});
+
+// --- TEGNING ---
+function draw() {
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    for(let y=0; y<mapSize; y++) {
+        for(let x=0; x<mapSize; x++) {
+            // Beregn avstand til spiller (Fog of War)
+            let dist = Math.sqrt((x-player.x)**2 + (y-player.y)**2);
             
-            <div class="center-room">
-                <div class="door"></div>
-                <span style="font-size: 10px;">START</span>
-            </div>
-        </div>
+            if(dist < viewDist) {
+                // Tegn det vi ser
+                let screenX = centerX + (x - player.x) * tileSize - tileSize/2;
+                let screenY = centerY + (y - player.y) * tileSize - tileSize/2;
 
-        <label for="interact-trigger" class="interact-btn">E</label>
+                ctx.fillStyle = grid[y][x] === 1 ? "#333" : "#111";
+                ctx.fillRect(screenX, screenY, tileSize, tileSize);
+                
+                // Tegn "vegg-kant"
+                if(grid[y][x] === 1) {
+                    ctx.strokeStyle = "#444";
+                    ctx.strokeRect(screenX, screenY, tileSize, tileSize);
+                }
+            }
+        }
+    }
 
-        <div class="dialog">
-            Den er låst.
-            <br>
-            <label for="interact-trigger" style="color: red; cursor: pointer;">[Lukk]</label>
-        </div>
-    </div>
+    // Tegn spiller (i midten av skjermen)
+    ctx.fillStyle = "cyan";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, tileSize/3, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Legg på et "skygge-lag" over alt for å gjøre det mykere
+    let gradient = ctx.createRadialGradient(centerX, centerY, tileSize, centerX, centerY, tileSize * viewDist);
+    gradient.addColorStop(0, "transparent");
+    gradient.addColorStop(1, "black");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+}
 
+draw();
+</script>
 </body>
 </html>
