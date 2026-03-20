@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Eternal Hunt</title>
+    <title>Minotaur: Shadow & Stealth</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         canvas { display: block; }
@@ -17,8 +17,12 @@
         #sniff-alert { 
             position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
             color: #ff0000; font-size: 24px; font-weight: bold; letter-spacing: 2px;
-            text-shadow: 0 0 15px #f00; display: none; z-index: 200;
-            text-align: center; width: 100%;
+            text-shadow: 0 0 15px #f00; display: none; z-index: 200; text-align: center; width: 100%;
+        }
+
+        #ui-status {
+            position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7);
+            padding: 10px; border: 1px solid #444; font-size: 12px; z-index: 200;
         }
 
         #jumpscare { position: absolute; inset: 0; background: #000; display: none; z-index: 1000; justify-content: center; align-items: center; overflow: hidden; }
@@ -33,11 +37,12 @@
 <body>
 
     <div id="sniff-alert">The minotaur is sniffing around... Run!</div>
+    <div id="ui-status">Cooldown: KLAR</div>
 
     <div id="menu" class="overlay">
         <div class="box">
             <h1>MINOTAUR</h1>
-            <p style="color: #666; font-size: 11px; margin-bottom: 20px;">HAN FINNER DEG ALLTID</p>
+            <p style="color: #666; font-size: 11px; margin-bottom: 20px;">GJEM DEG I DE GRØNNE SONENE</p>
             <select id="size">
                 <option value="15">LITEN</option>
                 <option value="25" selected>STOR</option>
@@ -71,19 +76,23 @@ const moveTime = 350;
 
 let grid = [];
 let isRunning = false;
-let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, visionRadius: 180 };
+let player = { 
+    gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, 
+    isMoving: false, moveStart: 0, visionRadius: 180,
+    isHiding: false, hideEnd: 0, hideCooldown: 0
+};
 let monster = { 
     gridX: 0, gridY: 0, renderX: 0, renderY: 0, targetX: 0, targetY: 0, 
     isMoving: false, moveStart: 0, waitEnd: 0, baseSpeedMult: 1,
     abilityActive: false, nextAbilityTime: 0, speedBoost: 1, 
     scentX: -1, scentY: -1, rotation: 0
 };
-let items = [], placedLights = [], exit = {x:0, y:0};
+let items = [], placedLights = [], hideSpots = [], exit = {x:0, y:0};
 
 const diffSettings = {
-    easy: { mSpeed: 0.8, abMin: 60000, abMax: 90000 },
-    medium: { mSpeed: 1.1, abMin: 45000, abMax: 75000 },
-    hard: { mSpeed: 1.7, abMin: 20000, abMax: 45000 }
+    easy: { mSpeed: 0.8, abMin: 60000, abMax: 90000, spots: 5, loot: 20 },
+    medium: { mSpeed: 1.1, abMin: 45000, abMax: 75000, spots: 10, loot: 35 },
+    hard: { mSpeed: 1.7, abMin: 20000, abMax: 45000, spots: 25, loot: 60 }
 };
 
 let currentSettings;
@@ -92,6 +101,7 @@ function start() {
     const s = parseInt(document.getElementById("size").value);
     currentSettings = diffSettings[document.getElementById("diff").value];
     generateMaze(s);
+    
     player.gridX = 1; player.gridY = grid.length - 2;
     player.renderX = player.gridX * tileSize; player.renderY = player.gridY * tileSize;
     player.targetX = player.gridX; player.targetY = player.gridY;
@@ -102,6 +112,7 @@ function start() {
     monster.targetX = monster.gridX; monster.targetY = monster.gridY;
     monster.baseSpeedMult = currentSettings.mSpeed;
     
+    spawnExtras(s);
     setNextAbility(performance.now());
     document.getElementById("menu").style.display = "none";
     isRunning = true;
@@ -130,59 +141,93 @@ function generateMaze(size) {
     exit = { x: dim - 2, y: 1 }; grid[exit.y][exit.x] = 0;
 }
 
-function spawnItems(size) {
-    items = [];
-    for(let i=0; i < Math.floor(size/1.5); i++) {
+function spawnExtras(size) {
+    items = []; hideSpots = [];
+    // Loot (Lykter/Syn)
+    for(let i=0; i < currentSettings.loot; i++) {
         let rx, ry;
         do { rx = Math.floor(Math.random()*grid[0].length); ry = Math.floor(Math.random()*grid.length); } 
-        while(grid[ry][rx] === 1);
+        while(grid[ry][rx] === 1 || (rx === player.gridX && ry === player.gridY));
         items.push({x: rx, y: ry, type: Math.random() > 0.4 ? 'orange' : 'yellow'});
+    }
+    // Gjemmesteder
+    for(let i=0; i < currentSettings.spots; i++) {
+        let rx, ry;
+        do { rx = Math.floor(Math.random()*grid[0].length); ry = Math.floor(Math.random()*grid.length); } 
+        while(grid[ry][rx] === 1 || (rx === player.gridX && ry === player.gridY));
+        hideSpots.push({x: rx, y: ry});
     }
 }
 
 function update(now) {
     if (!isRunning) return;
 
-    // --- ABILITY AKTIVERING ---
+    // --- ABILITY ---
     if (now > monster.nextAbilityTime && !monster.abilityActive) {
         monster.abilityActive = true;
         monster.waitEnd = now + 2500; 
-        monster.scentX = player.gridX; 
-        monster.scentY = player.gridY;
-        document.getElementById("sniff-alert").style.display = "block";
         
+        // Hvis spilleren er gjemt, "bommer" minotauren på lukten
+        if (player.isHiding) {
+            monster.scentX = -1;
+            monster.scentY = -1;
+        } else {
+            monster.scentX = player.gridX; 
+            monster.scentY = player.gridY;
+        }
+        
+        document.getElementById("sniff-alert").style.display = "block";
         setTimeout(() => {
-            monster.speedBoost = 2.0; // 2x fart som bedt om
+            if (monster.scentX !== -1) monster.speedBoost = 2.0;
             document.getElementById("sniff-alert").style.display = "none";
         }, 2500);
     }
 
-    if (monster.gridX === monster.scentX && monster.gridY === monster.scentY) {
+    if (monster.scentX !== -1 && monster.gridX === monster.scentX && monster.gridY === monster.scentY) {
         monster.abilityActive = false;
         monster.speedBoost = 1.0;
         monster.scentX = -1;
         setNextAbility(performance.now());
+    } else if (monster.abilityActive && monster.scentX === -1 && now > monster.waitEnd + 2000) {
+        // Avslutt lukting hvis han ble lurt
+        monster.abilityActive = false;
+        setNextAbility(performance.now());
     }
 
-    // Spiller
-    if (!player.isMoving) {
-        let dx = 0, dy = 0;
-        if (keys['w'] || keys['arrowup']) dy = -1;
-        else if (keys['s'] || keys['arrowdown']) dy = 1;
-        else if (keys['a'] || keys['arrowleft']) dx = -1;
-        else if (keys['d'] || keys['arrowright']) dx = 1;
-        if (dx !== 0 || dy !== 0) {
-            let nx = player.gridX + dx, ny = player.gridY + dy;
-            if (grid[ny] && grid[ny][nx] === 0) {
-                player.isMoving = true; player.moveStart = now;
-                player.targetX = nx; player.targetY = ny;
-            }
+    // --- SPESIAL: GJEMMING ---
+    if (player.isHiding) {
+        if (now > player.hideEnd) {
+            player.isHiding = false;
+            player.hideCooldown = now + 15000;
         }
-    } else {
-        let t = Math.min((now - player.moveStart) / moveTime, 1);
-        player.renderX = (player.gridX + (player.targetX - player.gridX) * t) * tileSize;
-        player.renderY = (player.gridY + (player.targetY - player.gridY) * t) * tileSize;
-        if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
+    }
+
+    // UI Status Update
+    const cd = Math.max(0, Math.ceil((player.hideCooldown - now) / 1000));
+    document.getElementById("ui-status").innerText = player.isHiding ? "GJEMT!" : (cd > 0 ? `Cooldown: ${cd}s` : "KLAR");
+    document.getElementById("ui-status").style.color = player.isHiding ? "#0f0" : (cd > 0 ? "#f66" : "#fff");
+
+    // Spiller Bevegelse (Kun hvis ikke gjemt)
+    if (!player.isHiding) {
+        if (!player.isMoving) {
+            let dx = 0, dy = 0;
+            if (keys['w'] || keys['arrowup']) dy = -1;
+            else if (keys['s'] || keys['arrowdown']) dy = 1;
+            else if (keys['a'] || keys['arrowleft']) dx = -1;
+            else if (keys['d'] || keys['arrowright']) dx = 1;
+            if (dx !== 0 || dy !== 0) {
+                let nx = player.gridX + dx, ny = player.gridY + dy;
+                if (grid[ny] && grid[ny][nx] === 0) {
+                    player.isMoving = true; player.moveStart = now;
+                    player.targetX = nx; player.targetY = ny;
+                }
+            }
+        } else {
+            let t = Math.min((now - player.moveStart) / moveTime, 1);
+            player.renderX = (player.gridX + (player.targetX - player.gridX) * t) * tileSize;
+            player.renderY = (player.gridY + (player.targetY - player.gridY) * t) * tileSize;
+            if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
+        }
     }
 
     // Monster AI
@@ -220,13 +265,21 @@ function update(now) {
         if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
-    if (Math.abs(player.renderX - monster.renderX) < 25 && Math.abs(player.renderY - monster.renderY) < 25) { 
-        isRunning = false; document.getElementById("jumpscare").style.display = "flex";
-        setTimeout(() => location.reload(), 2000);
+    // Jumpscare sjekk (Kun hvis ikke gjemt)
+    if (!player.isHiding) {
+        if (Math.abs(player.renderX - monster.renderX) < 25 && Math.abs(player.renderY - monster.renderY) < 25) { 
+            isRunning = false; document.getElementById("jumpscare").style.display = "flex";
+            setTimeout(() => location.reload(), 2000);
+        }
     }
     if (player.gridX === exit.x && player.gridY === exit.y) { isRunning = false; document.getElementById("victory-screen").style.display = "flex"; }
     
-    monster.rotation += 0.07; // Halvert rotasjonsfart (fra 0.15)
+    monster.rotation += 0.07;
+    
+    // Prompt sjekk
+    let onLoot = items.some(it => it.x === player.gridX && it.y === player.gridY);
+    let onSpot = hideSpots.some(s => s.x === player.gridX && s.y === player.gridY);
+    document.getElementById("prompt").style.display = (onLoot || onSpot) ? "block" : "none";
 }
 
 function loop(now) {
@@ -236,20 +289,38 @@ function loop(now) {
     const offX = canvas.width/2 - player.renderX - 20; const offY = canvas.height/2 - player.renderY - 20;
 
     ctx.fillStyle = "#050505"; ctx.fillRect(0,0, canvas.width, canvas.height);
+    
+    // Tegn vegger
     for(let y=0; y<grid.length; y++) {
         for(let x=0; x<grid[y].length; x++) {
             if(grid[y][x] === 1) { ctx.fillStyle = "#1a1a1a"; ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize); }
         }
     }
+
+    // Tegn HideSpots
+    hideSpots.forEach(s => {
+        ctx.strokeStyle = "#0f0"; ctx.lineWidth = 2;
+        ctx.strokeRect(s.x*tileSize+offX+5, s.y*tileSize+offY+5, tileSize-10, tileSize-10);
+        ctx.fillStyle = "rgba(0,255,0,0.1)";
+        ctx.fillRect(s.x*tileSize+offX+5, s.y*tileSize+offY+5, tileSize-10, tileSize-10);
+    });
+    
+    // Tegn Loot
     items.forEach(it => {
         ctx.fillStyle = it.type === 'orange' ? "#ffa500" : "#ffff00";
         ctx.beginPath(); ctx.arc(it.x*tileSize+offX+20, it.y*tileSize+offY+20, 8, 0, Math.PI*2); ctx.fill();
     });
+
     ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX+10, exit.y*tileSize+offY+10, 20, 20);
     ctx.fillStyle = monster.speedBoost > 1 ? "#f00" : "#600";
     ctx.beginPath(); ctx.arc(monster.renderX+offX+20, monster.renderY+offY+20, 14, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
+    
+    // Spiller (Skjul hvis gjemt)
+    if (!player.isHiding) {
+        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
+    }
 
+    // Fog of War
     let temp = document.createElement('canvas'); temp.width = canvas.width; temp.height = canvas.height;
     let tCtx = temp.getContext('2d');
     tCtx.fillStyle = "rgba(0,0,0,0.98)"; tCtx.fillRect(0,0,canvas.width,canvas.height);
@@ -265,25 +336,14 @@ function loop(now) {
     });
     ctx.drawImage(temp, 0, 0);
 
-    // X-RAY PILER (V-form, uten stamme, saktere rotasjon)
+    // X-RAY PILER (Vises alltid hvis aktiv)
     if (monster.abilityActive) {
         const mx = monster.renderX + offX + 20; const my = monster.renderY + offY + 20;
-        ctx.save();
-        ctx.translate(mx, my);
-        ctx.rotate(monster.rotation);
-        ctx.strokeStyle = "#ff0000";
-        ctx.lineWidth = 4;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "red";
-        
+        ctx.save(); ctx.translate(mx, my); ctx.rotate(monster.rotation);
+        ctx.strokeStyle = "#ff0000"; ctx.lineWidth = 4; ctx.shadowBlur = 15; ctx.shadowColor = "red";
         for(let i=0; i<4; i++) {
-            ctx.rotate(Math.PI/2);
-            ctx.beginPath();
-            // Tegner bare pilspissen (to linjer som danner en vinkel)
-            ctx.moveTo(50, -10); 
-            ctx.lineTo(60, 0); 
-            ctx.lineTo(50, 10);
-            ctx.stroke();
+            ctx.rotate(Math.PI/2); ctx.beginPath();
+            ctx.moveTo(50, -10); ctx.lineTo(60, 0); ctx.lineTo(50, 10); ctx.stroke();
         }
         ctx.restore();
     }
@@ -295,11 +355,19 @@ window.onkeydown = e => keys[e.key.toLowerCase()] = true;
 window.onkeyup = e => {
     keys[e.key.toLowerCase()] = false;
     if(e.key.toLowerCase() === 'e') {
+        // Sjekk Loot
         let i = items.findIndex(it => it.x === player.gridX && it.y === player.gridY);
         if(i !== -1) {
             if(items[i].type === 'orange') placedLights.push({x: player.gridX, y: player.gridY});
             else player.visionRadius += 60;
             items.splice(i, 1);
+            return;
+        }
+        // Sjekk Gjemmested
+        let spot = hideSpots.some(s => s.x === player.gridX && s.y === player.gridY);
+        if(spot && performance.now() > player.hideCooldown && !player.isHiding) {
+            player.isHiding = true;
+            player.hideEnd = performance.now() + 3000;
         }
     }
 };
