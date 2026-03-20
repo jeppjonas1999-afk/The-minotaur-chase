@@ -2,21 +2,20 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Labyrint: Minotaurens Jakt</title>
+    <title>Minotaurens Labyrint</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
         canvas { display: block; }
         #menu {
-            position: absolute; inset: 0; background: #111;
+            position: absolute; inset: 0; background: #0a0a0a;
             display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
         }
-        .box { border: 1px solid #444; padding: 40px; background: #1a1a1a; width: 350px; text-align: center; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { font-weight: 300; letter-spacing: 5px; margin-bottom: 30px; color: #eee; }
-        label { display: block; margin-top: 20px; color: #888; font-size: 11px; text-align: left; text-transform: uppercase; letter-spacing: 1px; }
-        select, button { width: 100%; padding: 12px; background: #222; color: #fff; border: 1px solid #333; margin-top: 8px; cursor: pointer; border-radius: 4px; font-size: 14px; }
-        button { background: #eee; color: #000; font-weight: bold; margin-top: 30px; transition: 0.2s; border: none; }
-        button:hover { background: #fff; transform: translateY(-2px); }
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; display: none; color: #666; font-size: 12px; letter-spacing: 1px; }
+        .box { border: 1px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; border-radius: 4px; }
+        h1 { font-weight: 200; letter-spacing: 8px; margin-bottom: 30px; color: #fff; }
+        label { display: block; margin-top: 20px; color: #555; font-size: 10px; text-align: left; text-transform: uppercase; letter-spacing: 2px; }
+        select, button { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 8px; cursor: pointer; font-size: 14px; }
+        button { background: #fff; color: #000; font-weight: bold; margin-top: 30px; border: none; text-transform: uppercase; }
+        button:hover { background: #ccc; }
     </style>
 </head>
 <body>
@@ -24,23 +23,22 @@
     <div id="menu">
         <div class="box">
             <h1>LABYRINT</h1>
-            <label>Kartstørrelse</label>
+            <label>Dimensjoner</label>
             <select id="size">
-                <option value="11">Liten</option>
-                <option value="17" selected>Medium</option>
-                <option value="25">Stor</option>
+                <option value="15">KOMPAKT</option>
+                <option value="25" selected>STOR</option>
+                <option value="35">ENORM</option>
             </select>
-            <label>Vanskelighetsgrad</label>
+            <label>Minotaur Instinkt</label>
             <select id="diff">
                 <option value="easy">ENKEL</option>
-                <option value="medium" selected>MEDIUM</option>
-                <option value="hard">VANSKELIG</option>
+                <option value="medium" selected>MEDIUM (1.05x fart)</option>
+                <option value="hard">VANSKELIG (1.6x fart)</option>
             </select>
-            <button onclick="start()">START SPILL</button>
+            <button onclick="start()">Begynn flukten</button>
         </div>
     </div>
 
-    <div id="ui">WASD / PILTASTER FOR Å BEVEGE SEG</div>
     <canvas id="game"></canvas>
 
 <script>
@@ -49,23 +47,11 @@ const ctx = canvas.getContext("2d");
 
 let grid = [];
 const tileSize = 40;
-const moveTime = 500; // 0.5 sekunder per rute for spilleren
+const moveTime = 350; // 0.35 sekunder per rute
 
-let player = { 
-    gridX: 2, gridY: 0, 
-    renderX: 0, renderY: 0, 
-    isMoving: false, moveStart: 0, 
-    targetX: 2, targetY: 0 
-};
-
-let monster = { 
-    gridX: 0, gridY: 0, 
-    renderX: 0, renderY: 0, 
-    isMoving: false, moveStart: 0, 
-    targetX: 0, targetY: 0,
-    speedMult: 1, precision: 15
-};
-
+let player = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0 };
+let monster = { gridX: 0, gridY: 0, renderX: 0, renderY: 0, isMoving: false, moveStart: 0, targetX: 0, targetY: 0, speedMult: 1, precision: 15 };
+let exit = { x: 0, y: 0 };
 let isRunning = false;
 
 const diffSettings = {
@@ -79,56 +65,48 @@ function start() {
     const d = document.getElementById("diff").value;
     const settings = diffSettings[d];
     
-    generateMaze(s);
+    generateComplexMaze(s);
     
-    // Setup Spiller
-    player.gridX = 2;
-    player.gridY = grid.length - 3;
-    player.targetX = player.gridX;
-    player.targetY = player.gridY;
-    player.renderX = player.gridX * tileSize;
-    player.renderY = player.gridY * tileSize;
+    // Startposisjon (nederst til venstre)
+    player.gridX = 1; player.gridY = grid.length - 2;
+    player.targetX = player.gridX; player.targetY = player.gridY;
+    player.renderX = player.gridX * tileSize; player.renderY = player.gridY * tileSize;
 
-    // Setup Monster
+    // Monsterposisjon (midten)
     monster.gridX = Math.floor(grid[0].length / 2);
     monster.gridY = Math.floor(grid.length / 2);
-    monster.targetX = monster.gridX;
-    monster.targetY = monster.gridY;
-    monster.renderX = monster.gridX * tileSize;
-    monster.renderY = monster.gridY * tileSize;
+    if(grid[monster.gridY][monster.gridX] === 1) monster.gridX++; 
+    monster.targetX = monster.gridX; monster.targetY = monster.gridY;
+    monster.renderX = monster.gridX * tileSize; monster.renderY = monster.gridY * tileSize;
     monster.speedMult = settings.mSpeed;
     monster.precision = settings.precision;
 
     document.getElementById("menu").style.display = "none";
-    document.getElementById("ui").style.display = "block";
     isRunning = true;
     requestAnimationFrame(loop);
 }
 
-function generateMaze(size) {
-    let base = size * 2 + 1;
-    grid = Array.from({length: base}, () => Array(base).fill(1));
+function generateComplexMaze(size) {
+    let dim = size * 2 + 1;
+    grid = Array.from({length: dim}, () => Array(dim).fill(1));
 
-    function carve(x, y) {
+    function walk(x, y) {
         grid[y][x] = 0;
         let dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(() => Math.random() - 0.5);
         for(let [dx, dy] of dirs) {
             let nx = x + dx, ny = y + dy;
-            if(ny > 0 && ny < base-1 && nx > 0 && nx < base-1 && grid[ny][nx] === 1) {
-                grid[ny][nx] = 0;
-                grid[ny][nx+1] = 0;
-                grid[ny+1][nx] = 0;
-                grid[ny+1][nx+1] = 0;
-                grid[y+dy/2][x+dx/2] = 0;
-                grid[y+dy/2][x+dx/2+1] = 0;
-                carve(nx, ny);
+            if(ny > 0 && ny < dim-1 && nx > 0 && nx < dim-1 && grid[ny][nx] === 1) {
+                grid[y + dy/2][x + dx/2] = 0; // Åpne veggen mellom
+                walk(nx, ny);
             }
         }
     }
-    carve(1, 1);
-    // Sentralt rom
-    let m = Math.floor(base/2);
-    for(let y=m-1; y<=m+1; y++) for(let x=m-1; x<=m+1; x++) grid[y][x] = 0;
+    walk(1, 1);
+
+    // Sett utgangen (øverst til høyre)
+    exit.x = dim - 2;
+    exit.y = 1;
+    grid[exit.y][exit.x] = 0;
 }
 
 const keys = {};
@@ -136,7 +114,6 @@ window.onkeydown = e => keys[e.key.toLowerCase()] = true;
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
 function update(now) {
-    // SPILLER BEVEGELSE (Grid-basert glidning)
     if (!player.isMoving) {
         let dx = 0, dy = 0;
         if (keys['w'] || keys['arrowup']) dy = -1;
@@ -145,117 +122,76 @@ function update(now) {
         else if (keys['d'] || keys['arrowright']) dx = 1;
 
         if (dx !== 0 || dy !== 0) {
-            let nx = player.gridX + dx;
-            let ny = player.gridY + dy;
+            let nx = player.gridX + dx, ny = player.gridY + dy;
             if (grid[ny] && grid[ny][nx] === 0) {
-                player.isMoving = true;
-                player.moveStart = now;
-                player.targetX = nx;
-                player.targetY = ny;
+                player.isMoving = true; player.moveStart = now;
+                player.targetX = nx; player.targetY = ny;
             }
         }
     } else {
-        let elapsed = now - player.moveStart;
-        let t = Math.min(elapsed / moveTime, 1);
+        let t = Math.min((now - player.moveStart) / moveTime, 1);
         player.renderX = (player.gridX + (player.targetX - player.gridX) * t) * tileSize;
         player.renderY = (player.gridY + (player.targetY - player.gridY) * t) * tileSize;
-
-        if (t === 1) {
-            player.isMoving = false;
-            player.gridX = player.targetX;
-            player.gridY = player.targetY;
-        }
+        if (t === 1) { player.isMoving = false; player.gridX = player.targetX; player.gridY = player.targetY; }
     }
 
-    // MONSTER BEVEGELSE
+    // Seier-sjekk
+    if (player.gridX === exit.x && player.gridY === exit.y) {
+        alert("DU SLAPP UT!"); location.reload();
+    }
+
+    // Monster AI
     if (!monster.isMoving) {
-        // Finn retning mot spillers sirkel
-        let targetAreaX = player.gridX + (Math.random() * monster.precision - monster.precision/2);
-        let targetAreaY = player.gridY + (Math.random() * monster.precision - monster.precision/2);
-        
+        let tx = player.gridX + Math.floor(Math.random() * monster.precision - monster.precision/2);
+        let ty = player.gridY + Math.floor(Math.random() * monster.precision - monster.precision/2);
         let mdx = 0, mdy = 0;
-        if (Math.abs(targetAreaX - monster.gridX) > Math.abs(targetAreaY - monster.gridY)) {
-            mdx = targetAreaX > monster.gridX ? 1 : -1;
-        } else {
-            mdy = targetAreaY > monster.gridY ? 1 : -1;
-        }
-
-        let nx = monster.gridX + mdx;
-        let ny = monster.gridY + mdy;
-
-        if (grid[ny] && grid[ny][nx] === 0) {
-            monster.isMoving = true;
-            monster.moveStart = now;
-            monster.targetX = nx;
-            monster.targetY = ny;
+        if (Math.abs(tx - monster.gridX) > Math.abs(ty - monster.gridY)) mdx = tx > monster.gridX ? 1 : -1;
+        else mdy = ty > monster.gridY ? 1 : -1;
+        
+        if (grid[monster.gridY + mdy] && grid[monster.gridY + mdy][monster.gridX + mdx] === 0) {
+            monster.isMoving = true; monster.moveStart = now;
+            monster.targetX = monster.gridX + mdx; monster.targetY = monster.gridY + mdy;
         }
     } else {
-        let elapsed = now - monster.moveStart;
-        let monsterMoveTime = moveTime / monster.speedMult;
-        let t = Math.min(elapsed / monsterMoveTime, 1);
+        let t = Math.min((now - monster.moveStart) / (moveTime / monster.speedMult), 1);
         monster.renderX = (monster.gridX + (monster.targetX - monster.gridX) * t) * tileSize;
         monster.renderY = (monster.gridY + (monster.targetY - monster.gridY) * t) * tileSize;
-
-        if (t === 1) {
-            monster.isMoving = false;
-            monster.gridX = monster.targetX;
-            monster.gridY = monster.targetY;
-        }
+        if (t === 1) { monster.isMoving = false; monster.gridX = monster.targetX; monster.gridY = monster.targetY; }
     }
 
-    // Sjekk game over
-    let dist = Math.sqrt((player.renderX - monster.renderX)**2 + (player.renderY - monster.renderY)**2);
-    if (dist < tileSize * 0.6) {
-        alert("Minotauren tok deg!");
-        location.reload();
+    if (Math.sqrt((player.renderX - monster.renderX)**2 + (player.renderY - monster.renderY)**2) < tileSize * 0.5) {
+        alert("Minotauren fant deg i mørket..."); location.reload();
     }
 }
 
 function loop(now) {
     if(!isRunning) return;
     update(now);
-    
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     const offX = canvas.width/2 - player.renderX - tileSize/2;
     const offY = canvas.height/2 - player.renderY - tileSize/2;
 
-    // Bakgrunn
-    ctx.fillStyle = "#050505";
-    ctx.fillRect(0,0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000"; ctx.fillRect(0,0, canvas.width, canvas.height);
 
-    // Tegn Labyrint
     for(let y=0; y<grid.length; y++) {
         for(let x=0; x<grid[y].length; x++) {
             if(grid[y][x] === 1) {
-                ctx.fillStyle = "#1a1a1a";
-                ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize);
-            } else {
-                ctx.strokeStyle = "#111";
-                ctx.strokeRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize);
+                ctx.fillStyle = "#151515"; ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize);
             }
         }
     }
 
-    // Monster (Mørkerød)
-    ctx.fillStyle = "#800";
-    ctx.beginPath(); 
-    ctx.arc(monster.renderX+offX+tileSize/2, monster.renderY+offY+tileSize/2, tileSize/3, 0, Math.PI*2); 
-    ctx.fill();
+    // Utgang (Grønn)
+    ctx.fillStyle = "#0f0"; ctx.fillRect(exit.x*tileSize+offX + 10, exit.y*tileSize+offY + 10, 20, 20);
 
-    // Spiller (Hvit/Grå)
-    ctx.fillStyle = "#eee";
-    ctx.beginPath(); 
-    ctx.arc(canvas.width/2, canvas.height/2, tileSize/4, 0, Math.PI*2); 
-    ctx.fill();
+    // Figurer
+    ctx.fillStyle = "#500"; ctx.beginPath(); ctx.arc(monster.renderX+offX+tileSize/2, monster.renderY+offY+tileSize/2, tileSize/3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 8, 0, Math.PI*2); ctx.fill();
 
-    // Among Us Mørke-effekt
-    let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 20, canvas.width/2, canvas.height/2, 250);
-    grad.addColorStop(0, "rgba(0,0,0,0)");
-    grad.addColorStop(1, "rgba(0,0,0,0.95)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0,canvas.width, canvas.height);
+    // Lys/Mørke
+    let g = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 10, canvas.width/2, canvas.height/2, 200);
+    g.addColorStop(0, "transparent"); g.addColorStop(1, "rgba(0,0,0,0.98)");
+    ctx.fillStyle = g; ctx.fillRect(0,0,canvas.width, canvas.height);
 
     requestAnimationFrame(loop);
 }
