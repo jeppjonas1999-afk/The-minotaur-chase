@@ -2,252 +2,207 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Labyrint Pro - Among Us Style</title>
+    <title>Labyrint: Minotaurens Jakt</title>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        body { margin: 0; background: #000; color: #0f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         canvas { display: block; }
-        
         #menu {
-            position: absolute; inset: 0; background: radial-gradient(circle, #222, #000);
+            position: absolute; inset: 0; background: #000;
             display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
         }
-        .box { background: #1a1a1a; padding: 30px; border: 2px solid #333; border-radius: 15px; width: 320px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        h1 { margin-top: 0; color: #00ffcc; letter-spacing: 2px; }
-        label { display: block; margin: 15px 0 5px; font-size: 14px; color: #aaa; text-transform: uppercase; }
-        select, button { width: 100%; padding: 12px; border-radius: 5px; border: none; font-size: 16px; }
-        select { background: #333; color: white; margin-bottom: 10px; cursor: pointer; }
-        button { background: #00ffcc; color: #000; font-weight: bold; cursor: pointer; margin-top: 20px; transition: 0.3s; }
-        button:hover { background: #00cca3; transform: scale(1.02); }
+        .box { border: 2px solid #0f0; padding: 30px; background: #050505; width: 350px; text-align: center; }
+        h1 { text-shadow: 0 0 10px #0f0; font-size: 28px; }
+        label { display: block; margin-top: 15px; color: #0a0; font-size: 12px; text-align: left; }
+        select, button { width: 100%; padding: 10px; background: #000; color: #0f0; border: 1px solid #0f0; margin-top: 5px; cursor: pointer; }
+        button:hover { background: #0f0; color: #000; }
+        #ui { position: absolute; bottom: 10px; left: 10px; pointer-events: none; display: none; }
     </style>
 </head>
 <body>
 
     <div id="menu">
         <div class="box">
-            <h1>LABYRINT</h1>
-            <label>Kartstørrelse</label>
+            <h1>MINOTAURUS</h1>
+            <label>STØRRELSE PÅ LABYRINT</label>
             <select id="size">
                 <option value="15">Liten</option>
-                <option value="25" selected>Medium (Anbefalt)</option>
-                <option value="41">Stor</option>
+                <option value="25" selected>Medium</option>
+                <option value="35">Stor</option>
             </select>
-            <label>Vanskelighetsgrad</label>
+            <label>VANSKELIGHETSGRAD</label>
             <select id="diff">
-                <option value="150">Lett (Mye lys)</option>
-                <option value="100" selected>Normal</option>
-                <option value="60">Vanskelig (Mørkt)</option>
+                <option value="easy">ENKEL (Sakte fiende, stor sirkel)</option>
+                <option value="medium" selected>MEDIUM (Litt raskere)</option>
+                <option value="hard">VANSKELIG (Rask fiende, nøyaktig)</option>
             </select>
-            <button onclick="init()">START SPILL</button>
+            <button onclick="start()">INITIALISER SYSTEM</button>
         </div>
     </div>
 
+    <div id="ui">WASD: BEVEGELSE | E: UTGANG</div>
     <canvas id="game"></canvas>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let map = [];
-let mapW, mapH;
-const tileSize = 32; // Størrelsen på én rute
-let player = { x: 0, y: 0 };
-let lightRadius = 100;
-let inGame = false;
+let grid = [];
+let tileSize = 40;
+let player = { x: 0, y: 0, speed: 4 };
+let monster = { x: 0, y: 0, speed: 0, targetX: 0, targetY: 0, radius: 0 };
+let mapDim = 0;
+let isRunning = false;
+let difficulty = {};
 
-function init() {
-    const size = parseInt(document.getElementById("size").value);
-    lightRadius = parseInt(document.getElementById("diff").value);
+const settings = {
+    easy:   { mSpeed: 3.5, precision: 30 * 40 }, // 30 blokker
+    medium: { mSpeed: 4.2, precision: 15 * 40 }, // 15 blokker
+    hard:   { mSpeed: 6.4, precision: 7 * 40 }   // 7 blokker
+};
+
+function start() {
+    const s = parseInt(document.getElementById("size").value);
+    const d = document.getElementById("diff").value;
+    difficulty = settings[d];
     
-    // Generer labyrint med 2-ruter brede ganger
-    generateDoubleMaze(size);
+    generateMaze(s);
     
-    // Plasser spilleren helt nederst til venstre i en gang
-    player.x = 2 * tileSize + tileSize/2;
-    player.y = (mapH - 3) * tileSize + tileSize/2;
+    // Plasser spiller nede til venstre
+    player.x = tileSize * 2.5;
+    player.y = (grid.length - 3) * tileSize + tileSize/2;
+    
+    // Plasser monster i midten
+    monster.x = (grid[0].length / 2) * tileSize;
+    monster.y = (grid.length / 2) * tileSize;
+    monster.speed = difficulty.mSpeed;
+    monster.radius = difficulty.precision;
 
     document.getElementById("menu").style.display = "none";
-    inGame = true;
-    window.requestAnimationFrame(gameLoop);
+    document.getElementById("ui").style.display = "block";
+    isRunning = true;
+    requestAnimationFrame(loop);
 }
 
-function generateDoubleMaze(size) {
-    // Lager et rutenett av vegger
-    mapH = mapW = size;
-    map = Array.from({length: mapH}, () => Array(mapW).fill(1));
+function generateMaze(size) {
+    let base = size * 2 + 1;
+    grid = Array.from({length: base}, () => Array(base).fill(1));
 
     function carve(x, y) {
-        map[y][x] = 0;
-        const dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(() => Math.random() - 0.5);
-        
+        grid[y][x] = 0;
+        let dirs = [[0,2],[0,-2],[2,0],[-2,0]].sort(() => Math.random() - 0.5);
         for(let [dx, dy] of dirs) {
             let nx = x + dx, ny = y + dy;
-            if(ny > 0 && ny < mapH-1 && nx > 0 && nx < mapW-1 && map[ny][nx] === 1) {
-                // Gjør både naboen OG ruten mellom til gulv (skaper 2-ruter bredde i praksis)
-                map[ny][nx] = 0;
-                map[y + dy/2][x + dx/2] = 0;
-                // Gjør gangen tykkere ved å åpne nabo-ruter
-                if(nx+1 < mapW-1) map[ny][nx+1] = 0;
-                if(ny+1 < mapH-1) map[ny+1][nx] = 0;
-                
+            if(ny > 0 && ny < base-1 && nx > 0 && nx < base-1 && grid[ny][nx] === 1) {
+                // Gjør gangene 2 ruter brede
+                grid[ny][nx] = 0;
+                grid[ny][nx+1] = 0;
+                grid[ny+1][nx] = 0;
+                grid[ny+1][nx+1] = 0;
+                grid[y+dy/2][x+dx/2] = 0;
+                grid[y+dy/2][x+dx/2+1] = 0;
                 carve(nx, ny);
             }
         }
     }
     carve(1, 1);
     
-    // Åpne et 4x4 rom i midten
-    let m = Math.floor(size/2);
+    // Sentralt rom
+    let m = Math.floor(base/2);
     for(let y=m-2; y<=m+2; y++) {
-        for(let x=m-2; x<=m+2; x++) map[y][x] = 0;
+        for(let x=m-2; x<=m+2; x++) grid[y][x] = 0;
     }
 }
 
-// Kontroller
 const keys = {};
 window.onkeydown = e => keys[e.key.toLowerCase()] = true;
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 
-function update() {
-    let speed = 3;
-    let nextX = player.x;
-    let nextY = player.y;
-
-    if(keys['w'] || keys['arrowup']) nextY -= speed;
-    if(keys['s'] || keys['arrowdown']) nextY += speed;
-    if(keys['a'] || keys['arrowleft']) nextX -= speed;
-    if(keys['d'] || keys['arrowright']) nextX += speed;
-
-    // Kollisjonssjekk (Sjekker hjørnene av spilleren)
-    if (!isWall(nextX, player.y)) player.x = nextX;
-    if (!isWall(player.x, nextY)) player.y = nextY;
-}
-
 function isWall(x, y) {
     let gx = Math.floor(x / tileSize);
     let gy = Math.floor(y / tileSize);
-    return map[gy] && map[gy][gx] === 1;
+    return !grid[gy] || grid[gy][gx] === 1;
 }
 
-function draw() {
+function update() {
+    // Spiller bevegelse
+    let dx = 0, dy = 0;
+    if(keys['w'] || keys['arrowup']) dy -= player.speed;
+    if(keys['s'] || keys['arrowdown']) dy += player.speed;
+    if(keys['a'] || keys['arrowleft']) dx -= player.speed;
+    if(keys['d'] || keys['arrowright']) dx += player.speed;
+
+    if(!isWall(player.x + dx, player.y)) player.x += dx;
+    if(!isWall(player.x, player.y + dy)) player.y += dy;
+
+    // Monster AI (Sirkel-logikk)
+    // Monsteret oppdaterer målet sitt til et tilfeldig punkt inni sirkelen rundt spilleren
+    if(Math.random() < 0.05) { // Endre mål av og til
+        let angle = Math.random() * Math.PI * 2;
+        let r = Math.random() * monster.radius;
+        monster.targetX = player.x + Math.cos(angle) * r;
+        monster.targetY = player.y + Math.sin(angle) * r;
+    }
+
+    let mdx = monster.targetX - monster.x;
+    let mdy = monster.targetY - monster.y;
+    let dist = Math.sqrt(mdx*mdx + mdy*mdy);
+    
+    if(dist > 5) {
+        monster.x += (mdx/dist) * monster.speed;
+        monster.y += (mdy/dist) * monster.speed;
+    }
+
+    // Sjekk om tatt
+    let pDist = Math.sqrt((player.x - monster.x)**2 + (player.y - monster.y)**2);
+    if(pDist < 20) {
+        alert("FANGET AV MINOTAUREN!");
+        location.reload();
+    }
+}
+
+function loop() {
+    if(!isRunning) return;
+    update();
+    
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     
-    ctx.fillStyle = "#1a1a1a"; // Gulvfarge
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     const offX = canvas.width/2 - player.x;
     const offY = canvas.height/2 - player.y;
 
-    // Tegn vegger
-    ctx.fillStyle = "#444";
-    for(let y=0; y<mapH; y++) {
-        for(let x=0; x<mapW; x++) {
-            if(map[y][x] === 1) {
-                ctx.fillRect(x*tileSize + offX, y*tileSize + offY, tileSize, tileSize);
+    // Tegn gulv og vegger
+    for(let y=0; y<grid.length; y++) {
+        for(let x=0; x<grid[y].length; x++) {
+            if(grid[y][x] === 1) {
+                ctx.fillStyle = "#111";
+                ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize);
+            } else {
+                ctx.strokeStyle = "#020";
+                ctx.strokeRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize);
             }
         }
     }
 
-    // Tegn spiller
-    ctx.fillStyle = "#00ffcc";
-    ctx.beginPath();
-    ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2);
-    ctx.fill();
+    // Tegn Monster (Rød prikk)
+    ctx.shadowBlur = 15; ctx.shadowColor = "red";
+    ctx.fillStyle = "red";
+    ctx.beginPath(); ctx.arc(monster.x+offX, monster.y+offY, 12, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
 
-    // RAYCASTING SKYGGER (Among Us Style)
-    ctx.save();
-    ctx.beginPath();
-    // Vi lager en "klippe-maske"
-    ctx.moveTo(canvas.width/2, canvas.height/2);
-    
-    for(let i=0; i<360; i+=0.5) {
-        let rad = i * Math.PI / 180;
-        let dx = Math.cos(rad);
-        let dy = Math.sin(rad);
-        
-        let cx = player.x;
-        let cy = player.y;
-        
-        // Finn hvor strålen treffer vegg
-        for(let d=0; d<lightRadius*2; d+=4) {
-            let tx = cx + dx * d;
-            let ty = cy + dy * d;
-            if(isWall(tx, ty) || d >= lightRadius) {
-                ctx.lineTo(tx + offX, ty + offY);
-                break;
-            }
-        }
-    }
-    ctx.closePath();
-    ctx.clip(); // Alt som tegnes etter dette er KUN inni lyset
-    
-    // Visker ut mørket (vi tegner ingenting her, så bakgrunnen vises)
-    ctx.restore();
+    // Tegn Spiller (Cyan prikk)
+    ctx.fillStyle = "#0ff";
+    ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill();
 
-    // Tegn det svarte mørket utenfor lyset
-    ctx.globalCompositeOperation = "multiply"; // Gjør det mørkt
-    // (Dette er en litt forenklet skygge for ytelse, men gir Among Us effekten)
-    ctx.fillStyle = "black";
-    // Her bruker vi en "Inverted" sirkel-logikk
-}
-
-// For å få ekte skygger må vi invertere tegningen:
-function drawDarkness() {
-    const offX = canvas.width/2 - player.x;
-    const offY = canvas.height/2 - player.y;
-
-    ctx.globalCompositeOperation = "source-over";
-    
-    // Lag et overlay-canvas for mørket
-    let tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    let tCtx = tempCanvas.getContext('2d');
-    
-    tCtx.fillStyle = "black";
-    tCtx.fillRect(0,0, canvas.width, canvas.height);
-    
-    tCtx.globalCompositeOperation = "destination-out";
-    tCtx.beginPath();
-    tCtx.moveTo(canvas.width/2, canvas.height/2);
-
-    for(let i=0; i<360; i+=1) {
-        let rad = i * Math.PI / 180;
-        let dx = Math.cos(rad);
-        let dy = Math.sin(rad);
-        let d = 0;
-        while(d < lightRadius) {
-            d += 2;
-            if(isWall(player.x + dx*d, player.y + dy*d)) break;
-        }
-        tCtx.lineTo(canvas.width/2 + dx*d, canvas.height/2 + dy*d);
-    }
-    tCtx.fill();
-    ctx.drawImage(tempCanvas, 0, 0);
-}
-
-function gameLoop() {
-    if(!inGame) return;
-    update();
-    
-    // Tegn verden
-    const offX = canvas.width/2 - player.x;
-    const offY = canvas.height/2 - player.y;
-    ctx.fillStyle = "#111"; 
+    // Among Us Skygger (Forenklet for ytelse)
+    let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 50, canvas.width/2, canvas.height/2, 300);
+    grad.addColorStop(0, "rgba(0,0,0,0)");
+    grad.addColorStop(1, "rgba(0,0,0,1)");
+    ctx.fillStyle = grad;
+    ctx.globalCompositeOperation = "multiply";
     ctx.fillRect(0,0,canvas.width, canvas.height);
-    
-    ctx.fillStyle = "#333";
-    for(let y=0; y<mapH; y++) {
-        for(let x=0; x<mapW; x++) {
-            if(map[y][x] === 1) ctx.fillRect(x*tileSize+offX, y*tileSize+offY, tileSize, tileSize);
-        }
-    }
-    
-    ctx.fillStyle = "cyan";
-    ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 8, 0, Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
 
-    drawDarkness();
-    window.requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
 }
 </script>
 </body>
