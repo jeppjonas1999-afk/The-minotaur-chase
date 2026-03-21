@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.6.0 Jumpscare Edition</title>
+    <title>Minotaur: The Vault - v.6.1 Items Restored</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -21,7 +21,6 @@
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
         
-        /* Jumpscare CSS */
         #jumpscare { 
             position: fixed; inset: 0; background: #600; color: #000; 
             display: none; flex-direction: column; justify-content: center; align-items: center; 
@@ -44,7 +43,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.6.0 JUMPSCARE FIX</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.6.1 ITEMS RESTORED</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -271,7 +270,6 @@ function loop(now) {
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
     const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    // ENDRET HER: Veggene har nå fargen #B3B3B3
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#B3B3B3"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     items.forEach(it => { ctx.fillStyle = "#333"; ctx.fillRect(it.gridX*tileSize+ox+8, it.gridY*tileSize+oy+8, 24, 24); ctx.fillStyle = "#111"; ctx.fillRect(it.gridX*tileSize+ox+10, it.gridY*tileSize+oy+10, 20, 4); });
     ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+5, 8, 30);
