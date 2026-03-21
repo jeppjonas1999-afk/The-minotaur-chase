@@ -2,14 +2,20 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.6.1 Items Restored</title>
+    <title>Minotaur: The Vault - v.6.2 Fixed Items & Grid</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
-        #modifiers-panel { display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); gap: 15px; box-sizing: border-box; }
+        
+        /* Gjenopprettet 3x3 rutenett */
+        #modifiers-panel { 
+            display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; border-left: none; 
+            padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
+        }
+        
         #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; }
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold;}
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
@@ -43,7 +49,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.6.1 ITEMS RESTORED</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.6.2 FIXED</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -56,6 +62,7 @@
                 <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
                 <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
                 <div class="mod-slot mod-active"><div class="mod-img" style="background: #800; color:#fff;">U-MINO</div><div class="mod-btns"><button id="u0" class="active" onclick="setUMino(false)">OFF</button><button id="u1" onclick="setUMino(true)">ON</button></div></div>
+                <div class="mod-slot">?</div><div class="mod-slot">?</div><div class="mod-slot">?</div><div class="mod-slot">?</div>
             </div>
             <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
@@ -81,10 +88,7 @@ function triggerJumpscare() {
     isRunning = false;
     const js = document.getElementById('jumpscare');
     js.style.display = 'flex';
-    setTimeout(() => {
-        js.style.display = 'none';
-        location.reload();
-    }, 2000);
+    setTimeout(() => { js.style.display = 'none'; location.reload(); }, 2000);
 }
 
 function getPath(sx, sy, tx, ty) {
@@ -113,13 +117,11 @@ function start() {
     let itemCount = itemMadness ? 40 : 15;
     for(let i=0; i<itemCount; i++) {
         let x,y; do { x=Math.floor(Math.random()*dim); y=Math.floor(Math.random()*dim); } while(grid[y][x]===1 || (x===mazeCenter.x && y===mazeCenter.y));
-        items.push({gridX:x, gridY:y, type:'trash'});
+        items.push({gridX:x, gridY:y, type: Math.random() > 0.5 ? 'gold' : 'orange'});
     }
 
     humans=[]; monsters=[]; revealTimer=0;
-    if(!uMinoMode){ 
-        player.gridX=1; player.gridY=dim-2; 
-    } else {
+    if(!uMinoMode){ player.gridX=1; player.gridY=dim-2; } else {
         player.gridX=mazeCenter.x; player.gridY=mazeCenter.y;
         for(let i=0; i<4; i++) {
             let hx, hy; do{hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim);}while(grid[hy][hx]===1||Math.hypot(hx-mazeCenter.x,hy-mazeCenter.y)<5);
@@ -127,7 +129,6 @@ function start() {
         }
     }
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
-    
     if(!uMinoMode||chaos>0) {
         for(let i=0; i<(1+chaos); i++) monsters.push({gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, path:[], nextAbility:performance.now()+3000, hasBoost:false, isChasing:false});
     }
@@ -136,126 +137,50 @@ function start() {
 
 function update(now) {
     if(!isRunning) return;
-
     if (minigame.active) {
-        let dt = now - minigame.lastTick;
-        minigame.lastTick = now;
-        minigame.progress -= (15 * (dt / 1000));
-        if (now >= minigame.nextPulse) {
-            let diffVal = document.getElementById("diff").value;
-            let bumpVal = diffVal === 'easy' ? 25 : (diffVal === 'hard' ? 20 : 10);
-            minigame.progress -= bumpVal;
-            minigame.nextPulse = now + 500;
-        }
+        let dt = now - minigame.lastTick; minigame.lastTick = now; minigame.progress -= (15 * (dt / 1000));
+        if (now >= minigame.nextPulse) { let bump = document.getElementById("diff").value === 'easy' ? 25 : (document.getElementById("diff").value === 'hard' ? 20 : 10); minigame.progress -= bump; minigame.nextPulse = now + 500; }
         if (minigame.progress >= 100) { minigame.active = false; minigame.human.isHidden = false; } 
-        else if (minigame.progress <= 0) { 
-            minigame.active = false; minigame.human.isHidden = false; 
-            minotaurAI.active = true; minotaurAI.stepsLeft = 15; 
-            minotaurAI.escapeFromX = minigame.human.gridX; minotaurAI.escapeFromY = minigame.human.gridY;
-        }
+        else if (minigame.progress <= 0) { minigame.active = false; minigame.human.isHidden = false; minotaurAI.active = true; minotaurAI.stepsLeft = 15; minotaurAI.escapeFromX = minigame.human.gridX; minotaurAI.escapeFromY = minigame.human.gridY; }
         return; 
     }
-    
     monsters.forEach(m => {
-        let distToPlayer = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
-        if(!uMinoMode && distToPlayer < 25) { triggerJumpscare(); return; }
-        if(!uMinoMode && distToPlayer < 200) { m.isChasing = true; m.isSniffing = false; } else { m.isChasing = false; }
-        if(!m.isMoving && !m.isSniffing) {
+        let dist = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
+        if(!uMinoMode && dist < 25) { triggerJumpscare(); return; }
+        if(!uMinoMode && dist < 200) { m.isChasing = true; } else { m.isChasing = false; }
+        if(!m.isMoving) {
             let nx, ny; 
-            if(m.isChasing) {
-                let p = getPath(m.gridX, m.gridY, player.gridX, player.gridY);
-                if(p.length > 0) { nx = p[0].x; ny = p[0].y; }
-            } else if(m.path.length>0){ 
-                let s=m.path.shift(); nx=s.x; ny=s.y; if(m.path.length===0) m.hasBoost=false; 
-            } else { 
-                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); 
-                let f=ds[Math.floor(Math.random()*ds.length)]; if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} 
-            }
+            if(m.isChasing) { let p = getPath(m.gridX, m.gridY, player.gridX, player.gridY); if(p.length > 0) { nx = p[0].x; ny = p[0].y; } } 
+            else if(m.path.length>0){ let s=m.path.shift(); nx=s.x; ny=s.y; } 
+            else { let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); let f=ds[Math.floor(Math.random()*ds.length)]; if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} }
             if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
-        } else if(m.isMoving) {
-            let speed = (baseHumanSpeed / difficultyMult); 
-            if(m.isChasing) speed /= 1.5;
-            else if(m.hasBoost) speed /= 2.5;
-            let t=Math.min((now-m.moveStart)/speed, 1); 
-            m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
+        } else {
+            let speed = (baseHumanSpeed / difficultyMult); if(m.isChasing) speed /= 1.5;
+            let t=Math.min((now-m.moveStart)/speed, 1); m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
             if(t===1){m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false;}
         }
     });
-
     if(uMinoMode) {
-        if(player.isSniffing && now-player.sniffStart>2500) { 
-            player.isSniffing=false; player.nextAbility=now+25000; player.speedBoostEnd=now+7500; 
-            let a=humans.filter(h=>!h.isDead && !h.isHidden && !h.hasEscaped); 
-            if(a.length>0){ revealPath=getPath(player.gridX,player.gridY,a[0].gridX,a[0].gridY); revealTimer=now+7500; } 
-        }
+        if(player.isSniffing && now-player.sniffStart>2500) { player.isSniffing=false; player.nextAbility=now+25000; player.speedBoostEnd=now+7500; let a=humans.filter(h=>!h.isDead && !h.isHidden && !h.hasEscaped); if(a.length>0){ revealPath=getPath(player.gridX,player.gridY,a[0].gridX,a[0].gridY); revealTimer=now+7500; } }
         humans.forEach(h => {
             if(h.isDead || h.hasEscaped) return;
-            if(h.isHidden) {
-                if(player.gridX === h.gridX && player.gridY === h.gridY && !minigame.active && !minotaurAI.active) {
-                    minigame.active = true; minigame.human = h; minigame.progress = 50; minigame.lastTick = now; minigame.nextPulse = now + 500;
-                }
-                return; 
-            }
+            if(h.isHidden) { if(player.gridX === h.gridX && player.gridY === h.gridY && !minigame.active && !minotaurAI.active) { minigame.active = true; minigame.human = h; minigame.progress = 50; minigame.lastTick = now; minigame.nextPulse = now + 500; } return; }
             if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25 && !minotaurAI.active) { h.isDead=true; return; }
             if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { h.hasEscaped = true; return; }
-            let distToPlayer = Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY);
-            let seesPlayer = distToPlayer < 250 || player.isSniffing; 
-            let currentSpeed = seesPlayer ? (baseHumanSpeed / 1.1) : baseHumanSpeed; 
+            let dist = Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY); let sees = dist < 250 || player.isSniffing; 
             if(!h.isMoving) {
-                if(seesPlayer) {
-                    if(!h.hideTarget) {
-                        let closestCan = null, minDist = Infinity;
-                        items.forEach(it => { if(it.type === 'trash') { let d = Math.hypot(it.gridX-h.gridX, it.gridY-h.gridY); if(d < minDist) { minDist = d; closestCan = it; } } });
-                        if(closestCan && minDist < 15) { h.path = getPath(h.gridX, h.gridY, closestCan.gridX, closestCan.gridY); h.hideTarget = closestCan; }
-                    }
-                    if(h.path && h.path.length > 0) { let step = h.path.shift(); h.targetX = step.x; h.targetY = step.y; h.isMoving = true; h.moveStart = now; } 
-                    else {
-                        let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
-                        ds.sort((a,b) => {
-                            let da = Math.hypot((h.gridX+a[0])*tileSize-player.renderX, (h.gridY+a[1])*tileSize-player.renderY);
-                            let db = Math.hypot((h.gridX+b[0])*tileSize-player.renderX, (h.gridY+b[1])*tileSize-player.renderY);
-                            return db - da; 
-                        });
-                        if(ds.length>0) { h.targetX = h.gridX+ds[0][0]; h.targetY = h.gridY+ds[0][1]; h.isMoving=true; h.moveStart=now; }
-                    }
+                if(sees) {
+                    let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
+                    ds.sort((a,b) => Math.hypot((h.gridX+b[0])*tileSize-player.renderX, (h.gridY+b[1])*tileSize-player.renderY) - Math.hypot((h.gridX+a[0])*tileSize-player.renderX, (h.gridY+a[1])*tileSize-player.renderY));
+                    if(ds.length>0) { h.targetX = h.gridX+ds[0][0]; h.targetY = h.gridY+ds[0][1]; h.isMoving=true; h.moveStart=now; }
                 } else {
-                    h.hideTarget = null; h.path = []; h.visited.add(h.gridX+','+h.gridY);
-                    if(Math.hypot(h.gridX-mazeCenter.x, h.gridY-mazeCenter.y) < 10 && Math.random() < 0.25) h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
-                    if(h.path && h.path.length > 0) { let step = h.path.shift(); h.targetX = step.x; h.targetY = step.y; h.isMoving = true; h.moveStart = now; } 
-                    else {
-                        let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
-                        let unvisited = ds.filter(d => !h.visited.has((h.gridX+d[0])+','+(h.gridY+d[1])));
-                        let f = unvisited.length > 0 ? unvisited[Math.floor(Math.random()*unvisited.length)] : ds[Math.floor(Math.random()*ds.length)];
-                        if(f){ h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
-                    }
+                    let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
+                    let f = ds[Math.floor(Math.random()*ds.length)]; if(f){ h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
                 }
-            } else {
-                let t=Math.min((now-h.moveStart)/currentSpeed, 1);
-                h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
-                if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; if(h.hideTarget && h.gridX === h.hideTarget.gridX && h.gridY === h.hideTarget.gridY) h.isHidden = true; }
-            }
+            } else { let t=Math.min((now-h.moveStart)/baseHumanSpeed, 1); h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize; if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; } }
         });
     }
-
-    if(minotaurAI.active) {
-        if(!player.isMoving) {
-            if(minotaurAI.stepsLeft > 0) {
-                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[player.gridY+d[1]]&&grid[player.gridY+d[1]][player.gridX+d[0]]===0);
-                ds.sort((a,b) => {
-                    let da = Math.hypot(player.gridX+a[0]-minotaurAI.escapeFromX, player.gridY+a[1]-minotaurAI.escapeFromY);
-                    let db = Math.hypot(player.gridX+b[0]-minotaurAI.escapeFromX, player.gridY+b[1]-minotaurAI.escapeFromY);
-                    return db - da; 
-                });
-                if(ds.length>0) { player.isMoving = true; player.moveStart = now; player.targetX = player.gridX+ds[0][0]; player.targetY = player.gridY+ds[0][1]; minotaurAI.stepsLeft--; } 
-                else { minotaurAI.active = false; }
-            } else { minotaurAI.active = false; }
-        } else {
-            let speed = (baseHumanSpeed / difficultyMult);
-            let t=Math.min((now-player.moveStart)/speed, 1); 
-            player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
-            if(t===1){player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false;}
-        }
-    } else if(!player.isMoving && !player.isSniffing) {
+    if(!player.isMoving && !player.isSniffing && !minotaurAI.active) {
         let dx=0, dy=0; if(window.keys?.w) dy=-1; else if(window.keys?.s) dy=1; else if(window.keys?.a) dx=-1; else if(window.keys?.d) dx=1;
         if(dx||dy){ let nx=player.gridX+dx, ny=player.gridY+dy; if(grid[ny]&&grid[ny][nx]===0){player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny;} }
     } else if(player.isMoving) {
@@ -271,27 +196,30 @@ function loop(now) {
     const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#B3B3B3"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
-    items.forEach(it => { ctx.fillStyle = "#333"; ctx.fillRect(it.gridX*tileSize+ox+8, it.gridY*tileSize+oy+8, 24, 24); ctx.fillStyle = "#111"; ctx.fillRect(it.gridX*tileSize+ox+10, it.gridY*tileSize+oy+10, 20, 4); });
+    
+    // GJENOPPRETTET GJENSTANDER (Prikker)
+    items.forEach(it => {
+        ctx.fillStyle = it.type === 'gold' ? "#ffd700" : "#ff8c00";
+        ctx.beginPath(); ctx.arc(it.gridX*tileSize+ox+20, it.gridY*tileSize+oy+20, 5, 0, Math.PI*2); ctx.fill();
+    });
+
     ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+5, 8, 30);
-    if(revealTimer>now) { ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20); revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke(); }
     humans.forEach(h=>{ if(!h.isDead && !h.isHidden && !h.hasEscaped){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill(); } });
     monsters.forEach(m=>{ ctx.fillStyle=m.isChasing ? "#f00" : "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
     ctx.fillStyle=!uMinoMode?"#fff":"#f00"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, !uMinoMode?11:16, 0, Math.PI*2); ctx.fill();
-    if(player.isSniffing) { ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(now*0.01); ctx.strokeStyle="#fff"; ctx.lineWidth=3; for(let i=0; i<4; i++){ ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10,-30); ctx.lineTo(0,-20); ctx.lineTo(10,-30); ctx.stroke(); } ctx.restore(); }
+    
     if(!fullBright) {
         let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
         tc.fillStyle="black"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
-        let vRad = (uMinoMode ? 700 : 180); 
-        let g=tc.createRadialGradient(t.width/2,t.height/2,0,t.width/2,t.height/2,vRad);
+        let vRad = (uMinoMode ? 700 : 180); let g=tc.createRadialGradient(t.width/2,t.height/2,0,t.width/2,t.height/2,vRad);
         g.addColorStop(0,"white"); g.addColorStop(0.4,"rgba(255,255,255,0.4)"); g.addColorStop(1,"transparent"); 
         tc.fillStyle=g; tc.beginPath(); tc.arc(t.width/2,t.height/2,vRad,0,Math.PI*2); tc.fill(); ctx.drawImage(t,0,0);
     }
     if (minigame.active) {
         ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 - 60, 300, 120);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 16px 'Courier New'"; ctx.textAlign = "center"; ctx.fillText("SPAM SPACE BAR!", canvas.width/2, canvas.height/2 - 20);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 16px 'Courier New'"; ctx.textAlign = "center"; ctx.fillText("SPAM SPACE!", canvas.width/2, canvas.height/2 - 20);
         ctx.fillStyle = "#333"; ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 10, 200, 25);
         ctx.fillStyle = "#f00"; ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 10, minigame.progress * 2, 25);
-        ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(canvas.width/2 - 100, canvas.height/2 + 10, 200, 25);
     }
     requestAnimationFrame(loop);
 }
@@ -300,7 +228,7 @@ window.keys = {};
 window.onkeydown=e=>{ 
     if(e.code === 'Space' || e.key === ' ') { if(minigame.active) minigame.progress += 8; e.preventDefault(); }
     window.keys[e.key.toLowerCase()]=true; 
-    if(e.key==='e') { if(uMinoMode && !player.isSniffing && !minigame.active && !minotaurAI.active && performance.now()>player.nextAbility) { player.isSniffing=true; player.sniffStart=performance.now(); } } 
+    if(e.key==='e' && uMinoMode && !player.isSniffing && performance.now()>player.nextAbility) { player.isSniffing=true; player.sniffStart=performance.now(); }
 };
 window.onkeyup=e=>window.keys[e.key.toLowerCase()]=false;
 function init(){}
