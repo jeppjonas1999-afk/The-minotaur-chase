@@ -2,58 +2,92 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Sniff</title>
+    <title>Minotaur: The Sniff & Chaos</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
-        .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         
-        /* UI Elementer */
-        .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; }
-        #hunt-warning { 
-            position: absolute; top: 10%; left: 50%; transform: translateX(-50%); 
-            color: #f00; font-size: 24px; font-weight: bold; display: none; 
-            text-shadow: 0 0 15px #f00; z-index: 200; text-transform: uppercase;
-            letter-spacing: 2px;
-        }
+        /* OVERLAY / MENY */
+        .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        #menu-wrapper { display: flex; position: relative; align-items: stretch; }
+        .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; position: relative; z-index: 2; }
+        
+        /* MODIFIERS PANEL */
+        #modifiers-panel { display: none; width: 420px; background: #111; border: 2px solid #333; border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); gap: 10px; box-sizing: border-box; }
+        #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; }
+        
+        .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 12px; color: #666; text-transform: uppercase; }
+        select, .start-btn { width: 100%; padding: 15px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-size: 16px; font-family: inherit; }
+        .start-btn { margin-top: 25px; background: #200; border-color: #500; font-weight: bold; }
+        .start-btn:hover { background: #500; }
 
+        .mod-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; border: 1px solid #444; }
+        .mod-title { position: absolute; bottom: 2px; width: 100%; text-align: center; color: #000; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .mod-btns { display: flex; gap: 4px; width: 100%; margin-top: 5px; }
+        .mod-btns button { padding: 4px; font-size: 12px; flex: 1; background: #1a1a1a; border: 1px solid #444; color: #fff; cursor: pointer; }
+        .mod-btns button.active { background: #800; border-color: #f00; font-weight: bold; }
+
+        /* GAME UI */
+        #hunt-warning { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-size: 24px; font-weight: bold; display: none; text-shadow: 0 0 15px #f00; z-index: 200; text-align: center; }
         #mg-container { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 300px; display: none; z-index: 1001; text-align: center; }
         #mg-bar-bg { width: 100%; height: 20px; background: #111; border: 2px solid #fff; overflow: hidden; }
         #mg-bar-fill { height: 100%; width: 50%; background: #0f0; }
-
-        select, button { width: 100%; padding: 10px; margin-top: 10px; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
-        button { background: #300; font-weight: bold; border-color: #600; }
     </style>
 </head>
-<body onload="init()">
+<body onload="initMenu()">
 
     <div id="hunt-warning">THE MINOTAUR IS SNIFFING AROUND... HIDE!</div>
     
     <div id="mg-container">
         <div id="mg-bar-bg"><div id="mg-bar-fill"></div></div>
-        <div id="mg-text" style="margin-top:10px; font-weight:bold;">HAMRE [W]!</div>
+        <div id="mg-text" style="margin-top:10px; font-weight:bold;">TRYKK [W]!</div>
     </div>
 
     <div id="menu" class="overlay">
-        <div class="box">
-            <h1 style="color:#800; letter-spacing:10px;">MINOTAUR</h1>
-            <select id="size"><option value="15">LITEN</option><option value="25" selected>STOR</option></select>
-            <button onclick="start()">START FLUKTEN</button>
+        <div id="menu-wrapper">
+            <div class="box">
+                <h1 style="color:#800; letter-spacing:10px;">MINOTAUR</h1>
+                <span class="menu-label">Kartstørrelse</span>
+                <select id="size"><option value="15">LITEN</option><option value="25" selected>STOR</option></select>
+                <span class="menu-label">Vanskelighetsgrad</span>
+                <select id="diff"><option value="easy">ENKEL</option><option value="medium" selected>MEDIUM</option></select>
+                <button class="start-btn" onclick="start()">START FLUKTEN</button>
+            </div>
+            <div id="modifiers-panel">
+                <div class="mod-card">
+                    <div class="mod-img"><div class="mod-title">Chaos Level</div></div>
+                    <div class="mod-btns">
+                        <button id="c1" onclick="setChaos(1)">1</button>
+                        <button id="c2" onclick="setChaos(2)">2</button>
+                        <button id="c3" onclick="setChaos(3)">3</button>
+                    </div>
+                </div>
+            </div>
+            <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
     </div>
 
     <canvas id="game"></canvas>
 
 <script>
-let isRunning = false, lastTime = 0, grid = [], hideSpots = [], monsters = [], keys = {};
+let chaos = 0, isRunning = false, lastTime = 0, grid = [], hideSpots = [], monsters = [], keys = {};
 const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
 const tileSize = 40, baseMoveTime = 320;
 
-let player = { gridX: 1, gridY: 1, renderX: 0, renderY: 0, isMoving: false, isHiding: false, moveStart: 0 };
+let player = { gridX: 1, gridY: 1, renderX: 0, renderY: 0, targetX:1, targetY:1, isMoving: false, isHiding: false, moveStart: 0 };
 let minigame = { active: false, progress: 50, targetKey: 'w' };
 let arrowRot = 0;
 
-function init() {}
+function initMenu() {}
+function togglePanel() { 
+    const p = document.getElementById('modifiers-panel'); 
+    p.style.display = p.style.display === 'grid' ? 'none' : 'grid'; 
+}
+function setChaos(n) { 
+    chaos = (chaos === n) ? 0 : n; 
+    [1,2,3].forEach(i => document.getElementById('c'+i).className = (i===chaos?'active':'')); 
+}
 
 function generate(size) {
     let dim = size * 2 + 1;
@@ -82,11 +116,15 @@ function start() {
         hideSpots.push({x, y});
     }
 
-    monsters = [{
-        gridX: Math.floor(grid.length/2), gridY: Math.floor(grid.length/2),
-        renderX: 0, renderY: 0, isMoving: false, 
-        isSniffing: false, showArrows: false, isHunting: false
-    }];
+    monsters = [];
+    for(let i=0; i<(1+chaos); i++) {
+        monsters.push({
+            gridX: Math.floor(grid.length/2), gridY: Math.floor(grid.length/2),
+            renderX: 0, renderY: 0, isMoving: false, 
+            isSniffing: false, showArrows: false, isHunting: false,
+            moveStart: 0, targetX: 0, targetY: 0
+        });
+    }
 
     document.getElementById("menu").style.display = "none";
     isRunning = true; lastTime = performance.now();
@@ -98,28 +136,22 @@ function update(now) {
     let dt = (now - lastTime)/1000; lastTime = now;
     arrowRot += dt * 5;
 
-    // Sniffing Logikk
     monsters.forEach(m => {
+        // SNIFF LOGIKK (Vinduet)
         if(!m.isSniffing && !m.isHunting && Math.random() < 0.001) {
             m.isSniffing = true;
             document.getElementById("hunt-warning").style.display = "block";
             
-            // 2.5 sekunder "oppvarming" uten piler
             setTimeout(() => {
                 document.getElementById("hunt-warning").style.display = "none";
-                m.showArrows = true; // Pilene dukker opp ETTER sniffing
+                m.showArrows = true; // Pilene kommer ETTER 2.5 sek
                 
                 if (!player.isHiding) {
-                    m.isHunting = true; // Han fant lukten!
-                } else {
-                    m.isHunting = false; // Han bommet, men pilene spinner fortsatt
+                    m.isHunting = true; // Han fant deg!
                 }
 
-                // Jakten/Pilene varer i 5 sekunder totalt
                 setTimeout(() => {
-                    m.isSniffing = false;
-                    m.isHunting = false;
-                    m.showArrows = false;
+                    m.isSniffing = false; m.isHunting = false; m.showArrows = false;
                 }, 5000);
             }, 2500);
         }
@@ -141,7 +173,7 @@ function update(now) {
         }
     });
 
-    // Spiller bevegelse
+    // Spiller
     if(!player.isHiding && !player.isMoving) {
         let dx=0, dy=0; if(keys['w']) dy=-1; else if(keys['s']) dy=1; else if(keys['a']) dx=-1; else if(keys['d']) dx=1;
         if(dx!==0 || dy!==0) {
@@ -155,15 +187,12 @@ function update(now) {
         if(t===1) { player.gridX = player.targetX; player.gridY = player.targetY; player.isMoving = false; }
     }
 
-    // Minigame update
+    // Minigame
     if(minigame.active) {
-        minigame.progress -= 20 * dt;
+        minigame.progress -= (20 + chaos*5) * dt;
         document.getElementById("mg-bar-fill").style.width = minigame.progress + "%";
         if(minigame.progress <= 0) location.reload();
-        if(minigame.progress >= 100) {
-            minigame.active = false; player.isHiding = false;
-            document.getElementById("mg-container").style.display = "none";
-        }
+        if(minigame.progress >= 100) { minigame.active = false; player.isHiding = false; document.getElementById("mg-container").style.display = "none"; }
     }
 
     if(!player.isHiding && monsters.some(m => Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY) < 30)) location.reload();
@@ -176,7 +205,7 @@ function drawArrows(m, ox, oy) {
     ctx.rotate(arrowRot);
     for(let i=0; i<4; i++) {
         ctx.rotate(Math.PI/2);
-        ctx.fillStyle = m.isHunting ? "#f00" : "#ff0"; // Røde piler hvis han fant deg, gule hvis han bare leter
+        ctx.fillStyle = m.isHunting ? "#f00" : "#ff0";
         ctx.beginPath();
         ctx.moveTo(35, 0); ctx.lineTo(20, -10); ctx.lineTo(20, 10);
         ctx.fill();
@@ -204,7 +233,6 @@ function loop(now) {
 
     if(!player.isHiding) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill(); }
 
-    // Lys/Tåke
     let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
     let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
     tc.globalCompositeOperation = "destination-out";
