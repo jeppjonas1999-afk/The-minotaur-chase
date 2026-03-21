@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - Panic Update</title>
+    <title>Minotaur: The Vault - Lethal Update</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
@@ -29,20 +29,18 @@
         .mod-btns { display: flex; gap: 2px; width: 100%; }
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
-        
         #hunt-warning { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-size: 24px; font-weight: bold; display: none; text-shadow: 0 0 15px #f00; z-index: 200; text-align: center; }
-        
-        /* MINIGAME UI */
         #mg-container { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 300px; display: none; z-index: 1001; text-align: center; }
-        #mg-bar-bg { width: 100%; height: 25px; background: #000; border: 3px solid #fff; position: relative; overflow: hidden; }
-        #mg-bar-fill { height: 100%; width: 50%; background: #0f0; transition: background 0.1s; }
-        #mg-text { margin-top:15px; font-weight:bold; font-size: 20px; color: #fff; text-shadow: 2px 2px #000; }
+        #mg-bar-bg { width: 100%; height: 25px; background: #000; border: 3px solid #fff; overflow: hidden; }
+        #mg-bar-fill { height: 100%; width: 50%; background: #0f0; }
+        #jumpscare { position: fixed; inset: 0; background: #000; z-index: 5000; display: none; justify-content: center; align-items: center; }
+        #jumpscare img { width: 80%; height: auto; filter: contrast(1.5) brightness(0.8); }
     </style>
 </head>
 <body onload="init()">
 
+    <div id="jumpscare"><img src="https://i.imgur.com/vHqY7bE.png" id="js-img" alt="MINOTAUR"></div>
     <div id="hunt-warning">THE MINOTAUR IS SNIFFING AROUND... HIDE!</div>
-    
     <div id="mg-container">
         <div id="mg-bar-bg"><div id="mg-bar-fill"></div></div>
         <div id="mg-text">HAMRE [W]!</div>
@@ -52,7 +50,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.2.4 PANIC UPDATE</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.2.6 LETHAL UPDATE</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -60,7 +58,15 @@
                 <button class="start-btn" onclick="start()">START GAME</button>
             </div>
             <div id="modifiers-panel">
-                <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button></div></div>
+                <div class="mod-slot mod-active">
+                    <div class="mod-img">CHAOS</div>
+                    <div class="mod-btns">
+                        <button id="c1" onclick="setChaos(1)">1</button>
+                        <button id="c2" onclick="setChaos(2)">2</button>
+                        <button id="c3" onclick="setChaos(3)">3</button>
+                        <button id="c4" onclick="setChaos(4)">4</button>
+                    </div>
+                </div>
                 <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightness(false)">OFF</button><button id="b1" onclick="setBrightness(true)">ON</button></div></div>
                 <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
                 <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
@@ -83,8 +89,17 @@ let arrowRot = 0;
 
 function init() {}
 function togglePanel() { const p = document.getElementById('modifiers-panel'); p.style.display = (p.style.display === 'grid') ? 'none' : 'grid'; }
-function setChaos(n) { chaos = (chaos === n) ? 0 : n; [1,2,3].forEach(i => document.getElementById('c'+i).className = (i===chaos?'active':'')); }
+function setChaos(n) { chaos = (chaos === n) ? 0 : n; [1,2,3,4].forEach(i => document.getElementById('c'+i).className = (i===chaos?'active':'')); }
 function setBrightness(val) { fullBright = val; document.getElementById('b0').className = !val ? 'active' : ''; document.getElementById('b1').className = val ? 'active' : ''; }
+
+function triggerJumpscare() {
+    isRunning = false;
+    const js = document.getElementById("jumpscare");
+    const img = document.getElementById("js-img");
+    js.style.display = "flex";
+    let shakeInt = setInterval(() => { img.style.transform = `translate(${(Math.random()-0.5)*60}px, ${(Math.random()-0.5)*60}px) scale(${1.1 + Math.random()*0.3})`; }, 30);
+    setTimeout(() => { clearInterval(shakeInt); location.reload(); }, 1500);
+}
 
 function generate(size) {
     let dim = size * 2 + 1;
@@ -116,13 +131,6 @@ function getPath(sx, sy, tx, ty) {
     return null;
 }
 
-function getCooldown() {
-    let d = document.getElementById("diff").value;
-    if(d === "easy") return (Math.random() * 25 + 45) * 1000;
-    if(d === "hard") return (Math.random() * 15 + 30) * 1000;
-    return (Math.random() * 15 + 15) * 1000;
-}
-
 function start() {
     let s = parseInt(document.getElementById("size").value);
     generate(s);
@@ -134,11 +142,12 @@ function start() {
         hideSpots.push({x, y});
     }
     monsters = [];
-    for(let i=0; i<(1+chaos); i++) {
+    let count = 1 + (chaos === 4 ? 4 : chaos);
+    for(let i=0; i<count; i++) {
         monsters.push({
             gridX: Math.floor(grid.length/2), gridY: Math.floor(grid.length/2),
             renderX: 0, renderY: 0, isMoving: false, isSniffing: false, showArrows: false, isHunting: false, 
-            path: [], nextAbilityTime: performance.now() + 5000, moveStart: 0, targetX: 0, targetY: 0, campDir: 1
+            path: [], nextAbilityTime: performance.now() + 55000, moveStart: 0, targetX: 0, targetY: 0
         });
     }
     document.getElementById("menu").style.display = "none";
@@ -149,7 +158,7 @@ function start() {
 function update(now) {
     if(!isRunning) return;
     let dt = (now - lastTime)/1000; lastTime = now;
-    arrowRot += dt * 8;
+    arrowRot += dt * 10;
 
     monsters.forEach(m => {
         if(!m.isSniffing && !m.isHunting && !minigame.active && now > m.nextAbilityTime) {
@@ -162,7 +171,9 @@ function update(now) {
                     m.isHunting = true;
                     m.path = getPath(m.gridX, m.gridY, player.gridX, player.gridY) || [];
                 }
-                m.nextAbilityTime = performance.now() + getCooldown();
+                let d = document.getElementById("diff").value;
+                let cd = d==="easy"? (Math.random()*25+45) : (d==="hard"? (Math.random()*15+30) : (Math.random()*15+15));
+                m.nextAbilityTime = performance.now() + cd * 1000;
                 m.isSniffing = false;
             }, 2500);
         }
@@ -170,26 +181,23 @@ function update(now) {
         if(!m.isMoving) {
             let nx, ny;
             if(minigame.active) {
-                // Patruljer rett ved siden av spilleren når han gjemmer seg
                 m.isHunting = true; m.showArrows = true;
-                let neighbors = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[player.gridY+d[1]] && grid[player.gridY+d[1]][player.gridX+d[0]] === 0);
-                let target = neighbors[Math.floor(Math.abs(Math.sin(now/500)) * neighbors.length)];
+                let ns = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[player.gridY+d[1]] && grid[player.gridY+d[1]][player.gridX+d[0]] === 0);
+                let target = ns[Math.floor(Math.random() * ns.length)];
                 nx = player.gridX + target[0]; ny = player.gridY + target[1];
             } else if(m.isHunting && m.path.length > 0) {
                 let step = m.path.shift(); nx = step.x; ny = step.y;
                 if(m.path.length === 0) { m.isHunting = false; m.showArrows = false; }
             } else {
                 let dirs = [[0,1],[0,-1],[1,0],[-1,0]].sort(() => Math.random() - 0.5);
-                for(let [dx, dy] of dirs) {
-                    if(grid[m.gridY+dy] && grid[m.gridY+dy][m.gridX+dx] === 0) { nx = m.gridX + dx; ny = m.gridY + dy; break; }
-                }
+                for(let [dx, dy] of dirs) { if(grid[m.gridY+dy] && grid[m.gridY+dy][m.gridX+dx] === 0) { nx = m.gridX + dx; ny = m.gridY + dy; break; } }
             }
             if(nx !== undefined) { m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny; }
         } else {
-            let speed = (m.isHunting || minigame.active) ? baseMoveTime/2 : baseMoveTime;
+            // 3x Fart når han jakter (baseMoveTime / 3)
+            let speed = (m.isHunting || minigame.active) ? baseMoveTime/3 : baseMoveTime;
             let t = Math.min((now - m.moveStart)/speed, 1);
-            m.renderX = (m.gridX + (m.targetX - m.gridX)*t)*tileSize;
-            m.renderY = (m.gridY + (m.targetY - m.gridY)*t)*tileSize;
+            m.renderX = (m.gridX + (m.targetX - m.gridX)*t)*tileSize; m.renderY = (m.gridY + (m.targetY - m.gridY)*t)*tileSize;
             if(t===1) { m.gridX = m.targetX; m.gridY = m.targetY; m.isMoving = false; }
         }
     });
@@ -211,35 +219,24 @@ function update(now) {
         minigame.progress -= (document.getElementById("diff").value === "insane" ? 25 : 18) * dt;
         let fill = document.getElementById("mg-bar-fill");
         fill.style.width = minigame.progress + "%";
-        
-        // FARGEKONTROLL PÅ BAREN
-        if(minigame.progress > 60) fill.style.background = "#0f0";
-        else if(minigame.progress > 30) fill.style.background = "#ff0";
-        else fill.style.background = "#f00";
-
-        minigame.shake = (100 - minigame.progress) / 10; // Risting øker når baren synker
-        
-        if(minigame.progress <= 0) location.reload();
+        fill.style.background = minigame.progress > 60 ? "#0f0" : (minigame.progress > 30 ? "#ff0" : "#f00");
+        minigame.shake = (100 - minigame.progress) / 8;
+        if(minigame.progress <= 0) triggerJumpscare();
         if(minigame.progress >= 100) { 
             minigame.active = false; player.isHiding = false; 
             document.getElementById("mg-container").style.display = "none";
-            monsters.forEach(m => { m.isHunting = false; m.showArrows = false; m.nextAbilityTime = now + 5000; });
+            monsters.forEach(m => { m.isHunting = false; m.showArrows = false; });
         }
-    } else { minigame.shake = 0; }
+    }
 
-    if(!player.isHiding && monsters.some(m => Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY) < 30)) location.reload();
+    if(!player.isHiding && monsters.some(m => Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY) < 30)) triggerJumpscare();
 }
 
 function loop(now) {
     if(!isRunning) return; update(now);
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    
-    // RISTING KODE
-    let sx = (Math.random()-0.5) * minigame.shake;
-    let sy = (Math.random()-0.5) * minigame.shake;
-    
+    let sx = (Math.random()-0.5) * minigame.shake, sy = (Math.random()-0.5) * minigame.shake;
     const ox = canvas.width/2 - player.renderX - 20 + sx, oy = canvas.height/2 - player.renderY - 20 + sy;
-
     ctx.fillStyle = "#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) {
         if(grid[y][x] === 1) { ctx.fillStyle = "#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
@@ -257,7 +254,6 @@ function loop(now) {
         }
     });
     if(!player.isHiding) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2+sx, canvas.height/2+sy, 10, 0, Math.PI*2); ctx.fill(); }
-
     if(!fullBright) {
         let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
         let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
@@ -281,7 +277,6 @@ window.onkeydown = e => {
     if(k === 'e' && !player.isMoving) {
         if(hideSpots.some(s => s.x === player.gridX && s.y === player.gridY) && !player.isHiding) {
             player.isHiding = true; 
-            // Minigame starter ALLTID hvis du gjemmer deg mens han jakter eller sniffer
             if(monsters.some(m => m.isSniffing || m.showArrows || Math.hypot(m.gridX-player.gridX, m.gridY-player.gridY) < 8)) {
                 minigame.active = true; minigame.progress = 50;
                 document.getElementById("mg-container").style.display = "block";
