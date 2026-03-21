@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - Brightness Update</title>
+    <title>Minotaur: The Vault - Stalker Update</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
@@ -48,7 +48,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.2.1 VISION UPDATE</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.2.2 STALKER UPDATE</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -123,6 +123,13 @@ function generate(size) {
     walk(1, 1);
 }
 
+function getCooldown() {
+    let d = document.getElementById("diff").value;
+    if(d === "easy") return (Math.random() * (70-45) + 45) * 1000;
+    if(d === "hard") return (Math.random() * (45-30) + 30) * 1000;
+    return (Math.random() * (30-15) + 15) * 1000;
+}
+
 function start() {
     let s = parseInt(document.getElementById("size").value);
     generate(s);
@@ -139,7 +146,10 @@ function start() {
     for(let i=0; i<(1+chaos); i++) {
         monsters.push({
             gridX: Math.floor(grid.length/2), gridY: Math.floor(grid.length/2),
-            renderX: 0, renderY: 0, isMoving: false, isSniffing: false, showArrows: false, isHunting: false, moveStart: 0, targetX: 0, targetY: 0
+            renderX: 0, renderY: 0, isMoving: false, 
+            isSniffing: false, showArrows: false, isHunting: false, 
+            lastKnownPlayerPos: null, nextAbilityTime: performance.now() + 5000,
+            moveStart: 0, targetX: 0, targetY: 0
         });
     }
     document.getElementById("menu").style.display = "none";
@@ -153,25 +163,46 @@ function update(now) {
     arrowRot += dt * 5;
 
     monsters.forEach(m => {
-        if(!m.isSniffing && !m.isHunting && Math.random() < 0.001) {
+        // SNIFFING TRIGGER (Basert på cooldown)
+        if(!m.isSniffing && !m.isHunting && now > m.nextAbilityTime) {
             m.isSniffing = true;
             document.getElementById("hunt-warning").style.display = "block";
+            
             setTimeout(() => {
                 document.getElementById("hunt-warning").style.display = "none";
                 m.showArrows = true; 
-                if (!player.isHiding) m.isHunting = true;
-                setTimeout(() => { m.isSniffing = false; m.isHunting = false; m.showArrows = false; }, 5000);
+                if (!player.isHiding) {
+                    m.isHunting = true;
+                    m.lastKnownPlayerPos = {x: player.gridX, y: player.gridY};
+                }
+                // Cooldown settes etter forsøket
+                m.nextAbilityTime = performance.now() + getCooldown();
             }, 2500);
         }
+
         if(!m.isMoving) {
-            let tx = m.isHunting ? player.gridX : Math.floor(Math.random()*grid.length);
-            let ty = m.isHunting ? player.gridY : Math.floor(Math.random()*grid.length);
+            let tx, ty;
+            if(m.isHunting && m.lastKnownPlayerPos) {
+                tx = m.lastKnownPlayerPos.x;
+                ty = m.lastKnownPlayerPos.y;
+                // Sjekk om han har nådd målet
+                if(m.gridX === tx && m.gridY === ty) {
+                    m.isHunting = false;
+                    m.showArrows = false;
+                    m.lastKnownPlayerPos = null;
+                }
+            } else {
+                tx = Math.floor(Math.random()*grid.length);
+                ty = Math.floor(Math.random()*grid.length);
+            }
+
             let dx = Math.sign(tx - m.gridX), dy = Math.sign(ty - m.gridY);
             let nx = m.gridX, ny = m.gridY;
             if(dx !== 0 && grid[m.gridY][m.gridX+dx] === 0) nx += dx;
             else if(dy !== 0 && grid[m.gridY+dy][m.gridX] === 0) ny += dy;
             if(nx !== m.gridX || ny !== m.gridY) { m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny; }
         } else {
+            // Dobbel fart hvis han jakter (160ms vs 320ms)
             let speed = m.isHunting ? baseMoveTime/2 : baseMoveTime;
             let t = Math.min((now - m.moveStart)/speed, 1);
             m.renderX = (m.gridX + (m.targetX - m.gridX)*t)*tileSize;
@@ -180,6 +211,7 @@ function update(now) {
         }
     });
 
+    // Spiller bevegelse
     if(!player.isHiding && !player.isMoving) {
         let dx=0, dy=0; if(keys['w']) dy=-1; else if(keys['s']) dy=1; else if(keys['a']) dx=-1; else if(keys['d']) dx=1;
         if(dx!==0 || dy!==0) {
@@ -212,11 +244,12 @@ function loop(now) {
     }
     hideSpots.forEach(s => { ctx.fillStyle = "#040"; ctx.fillRect(s.x*tileSize+ox+10, s.y*tileSize+oy+10, 20, 20); });
     monsters.forEach(m => {
-        ctx.fillStyle = m.isHunting ? "#f00" : (m.isSniffing ? "#a50" : "#600");
+        // Alltid mørkerød sirkel (ingen oransje fargebytte)
+        ctx.fillStyle = "#600"; 
         ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 15, 0, Math.PI*2); ctx.fill();
         if(m.showArrows) {
             ctx.save(); ctx.translate(m.renderX + ox + 20, m.renderY + oy + 20); ctx.rotate(arrowRot);
-            for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.fillStyle = m.isHunting ? "red" : "orange"; ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(20, -10); ctx.lineTo(20, 10); ctx.fill(); }
+            for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.fillStyle = "red"; ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(20, -10); ctx.lineTo(20, 10); ctx.fill(); }
             ctx.restore();
         }
     });
