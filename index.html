@@ -2,28 +2,42 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.4.3 Balanced Traps</title>
+    <title>Minotaur: The Vault - v.4.4 Mobile Support</title>
     <style>
-        body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
+        body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
+        
+        /* Settings Gear */
+        #settings-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; cursor: pointer; color: #555; z-index: 110; }
+        #settings-menu { display: none; position: absolute; top: 60px; right: 20px; background: #111; border: 1px solid #333; padding: 15px; z-index: 110; min-width: 150px; }
+        
         #modifiers-panel { 
             display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; 
             border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
         }
         #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; }
+        
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; }
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
+        
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
         .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 8px; }
         .mod-btns { display: flex; gap: 2px; width: 100%; }
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
+
+        /* Mobile Controls */
+        #mobile-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+        .dpad { position: absolute; bottom: 40px; left: 40px; width: 150px; height: 150px; display: grid; grid-template-columns: repeat(3, 1fr); pointer-events: auto; }
+        .dpad button { background: rgba(50,50,50,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 20px; border-radius: 10px; }
+        #btn-interact { position: absolute; bottom: 60px; right: 40px; width: 80px; height: 80px; border-radius: 50%; background: rgba(136,0,0,0.5); border: 2px solid #800; color: #fff; font-weight: bold; pointer-events: auto; }
+
         #hunt-warning { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-size: 24px; font-weight: bold; display: none; z-index: 200; }
         #jumpscare { position: fixed; inset: 0; background: #900; z-index: 5000; display: none; justify-content: center; align-items: center; }
         #jumpscare img { width: 100%; height: 100%; object-fit: cover; }
@@ -32,11 +46,26 @@
 <body onload="init()">
     <div id="jumpscare"><img src="https://i.imgur.com/vHqY7bE.png"></div>
     <div id="hunt-warning">SNIFFING...</div>
+    
+    <div id="mobile-ui">
+        <div class="dpad">
+            <div style="grid-column: 2;"><button onmousedown="keys['w']=true" onmouseup="keys['w']=false" ontouchstart="keys['w']=true" ontouchend="keys['w']=false">↑</button></div>
+            <div style="grid-row: 2; grid-column: 1;"><button onmousedown="keys['a']=true" onmouseup="keys['a']=false" ontouchstart="keys['a']=true" ontouchend="keys['a']=false">←</button></div>
+            <div style="grid-row: 2; grid-column: 2;"><button onmousedown="keys['s']=true" onmouseup="keys['s']=false" ontouchstart="keys['s']=true" ontouchend="keys['s']=false">↓</button></div>
+            <div style="grid-row: 2; grid-column: 3;"><button onmousedown="keys['d']=true" onmouseup="keys['d']=false" ontouchstart="keys['d']=true" ontouchend="keys['d']=false">→</button></div>
+        </div>
+        <button id="btn-interact" onclick="handleInteract()">E</button>
+    </div>
+
     <div id="menu" class="overlay">
+        <div id="settings-btn" onclick="toggleSettings()">⚙️</div>
+        <div id="settings-menu">
+            <label style="font-size: 10px;"><input type="checkbox" id="mobile-toggle"> Mobile Controls</label>
+        </div>
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.4.3 BALANCED TRAPS</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.4.4 MOBILE SUPPORT</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -64,10 +93,18 @@ let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, isHiding:
 let mazeCenter = { x:0, y:0 };
 
 function togglePanel() { const p=document.getElementById('modifiers-panel'); p.style.display=(p.style.display==='grid')?'none':'grid'; }
+function toggleSettings() { const s=document.getElementById('settings-menu'); s.style.display=(s.style.display==='block')?'none':'block'; }
 function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
 function setBrightness(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
 function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
 function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
+
+function handleInteract() {
+    if(!isRunning || player.isMoving) return;
+    if(Math.abs(player.gridX-mazeCenter.x)<=1 && Math.abs(player.gridY-mazeCenter.y)<=1) { alert("DU VANT!"); location.reload(); return; }
+    items.forEach(it => { if(it.x===player.gridX && it.y===player.gridY && !it.active) { if(it.type==='orange') it.active=true; else { player.visionBonus+=1; it.x=-100; } } });
+    if(hideSpots.some(s => s.x===player.gridX && s.y===player.gridY) && !player.isHiding) { player.isHiding=true; player.hideStartTime=performance.now(); }
+}
 
 function getPath(sx, sy, tx, ty) {
     let q = [[{x:sx, y:sy}]], vis = new Set([sx + ',' + sy]);
@@ -96,8 +133,9 @@ function start() {
     let s=parseInt(document.getElementById("size").value); generate(s);
     player.gridX=1; player.gridY=grid.length-2; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
     player.visionBonus=0; player.slowTimer=0; hideSpots=[]; items=[]; traps=[];
+    if(document.getElementById('mobile-toggle').checked) document.getElementById('mobile-ui').style.display = 'block';
+    
     if(trapLevel > 0) {
-        // NYE MENGDER: 15x og 25x
         let count = (trapLevel === 1 ? 15 : 25) * s;
         for(let i=0; i<count; i++) {
             let x,y, tries=0;
@@ -220,14 +258,7 @@ function loop(now) {
     requestAnimationFrame(loop);
 }
 
-window.onkeydown = e => {
-    let k = e.key.toLowerCase(); keys[k] = true;
-    if(k === 'e' && !player.isMoving) {
-        if(Math.abs(player.gridX-mazeCenter.x)<=1 && Math.abs(player.gridY-mazeCenter.y)<=1) { alert("DU VANT!"); location.reload(); return; }
-        items.forEach(it => { if(it.x===player.gridX && it.y===player.gridY && !it.active) { if(it.type==='orange') it.active=true; else { player.visionBonus+=1; it.x=-100; } } });
-        if(hideSpots.some(s => s.x===player.gridX && s.y===player.gridY) && !player.isHiding) { player.isHiding=true; player.hideStartTime=performance.now(); }
-    }
-};
+window.onkeydown = e => { let k = e.key.toLowerCase(); keys[k] = true; if(k === 'e') handleInteract(); };
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
 function init() {}
 </script>
