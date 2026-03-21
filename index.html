@@ -2,24 +2,41 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.3.7 Sniffing Ability</title>
+    <title>Minotaur: The Vault - v.3.8 UI Restore</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
-        #modifiers-panel { display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; }
+        
+        /* FIKSET 3x3 GRID */
+        #modifiers-panel { 
+            display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; 
+            border-left: none; padding: 20px; 
+            display: none; /* Endres til grid av JS */
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr); 
+            gap: 15px; box-sizing: border-box; 
+        }
+        
+        #expand-btn { 
+            position: absolute; right: -50px; top: 50%; transform: translateY(-50%); 
+            width: 50px; height: 100px; background: #222; border: 2px solid #333; 
+            border-left: none; color: #fff; font-size: 30px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; 
+        }
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; }
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
-        .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
+        
+        .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center; overflow: hidden;}
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
-        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; }
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 10px; }
         .mod-btns { display: flex; gap: 2px; width: 100%; }
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
+
         #hunt-warning { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-size: 24px; font-weight: bold; display: none; z-index: 200; }
         #jumpscare { position: fixed; inset: 0; background: #900; z-index: 5000; display: none; justify-content: center; align-items: center; }
         #jumpscare img { width: 100%; height: 100%; object-fit: cover; }
@@ -33,17 +50,40 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.3.7 SNIFF FIX</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.3.8 UI RESTORED</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
                 <select id="diff"><option value="easy">EASY</option><option value="hard" selected>HARD</option><option value="insane">INSANE</option></select>
                 <button class="start-btn" onclick="start()">START GAME</button>
             </div>
+            
             <div id="modifiers-panel">
-                <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
-                <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightness(false)">OFF</button><button id="b1" onclick="setBrightness(true)">ON</button></div></div>
-                <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
+                <div class="mod-slot mod-active">
+                    <div class="mod-img">CHAOS</div>
+                    <div class="mod-btns">
+                        <button id="c1" onclick="setChaos(1)">1</button>
+                        <button id="c2" onclick="setChaos(2)">2</button>
+                        <button id="c3" onclick="setChaos(3)">3</button>
+                        <button id="c4" onclick="setChaos(4)">4</button>
+                    </div>
+                </div>
+                <div class="mod-slot mod-active">
+                    <div class="mod-img" style="background: #ffd700;">LIGHT</div>
+                    <div class="mod-btns">
+                        <button id="b0" class="active" onclick="setBrightness(false)">OFF</button>
+                        <button id="b1" onclick="setBrightness(true)">ON</button>
+                    </div>
+                </div>
+                <div class="mod-slot mod-active">
+                    <div class="mod-img" style="background: #104; color:#fff;">ITEMS</div>
+                    <div class="mod-btns">
+                        <button id="m0" class="active" onclick="setItemMadness(false)">OFF</button>
+                        <button id="m1" onclick="setItemMadness(true)">MAD!</button>
+                    </div>
+                </div>
+                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
+                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
             </div>
             <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
@@ -59,7 +99,11 @@ const tileSize=40;
 let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, isHiding:false, moveStart:0, hideStartTime:0, visionBonus:0 };
 let mazeCenter = { x:0, y:0 };
 
-function togglePanel() { const p=document.getElementById('modifiers-panel'); p.style.display=(p.style.display==='grid')?'none':'grid'; }
+function init() {}
+function togglePanel() { 
+    const p=document.getElementById('modifiers-panel'); 
+    p.style.display=(p.style.display==='grid')?'none':'grid'; 
+}
 function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
 function setBrightness(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
 function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
@@ -90,29 +134,39 @@ function generate(size) {
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
 }
 
+function spawnRandomItem() {
+    let x, y, tries=0;
+    do { x=Math.floor(Math.random()*grid.length); y=Math.floor(Math.random()*grid.length); tries++; } 
+    while((grid[y][x]===1 || (Math.abs(x-mazeCenter.x)<3 && Math.abs(y-mazeCenter.y)<3)) && tries<50);
+    if(tries<50) items.push({x, y, type: Math.random()<0.75?'orange':'yellow', active:false});
+}
+
 function start() {
     let s=parseInt(document.getElementById("size").value); generate(s);
     player.gridX=1; player.gridY=grid.length-2; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
     player.visionBonus=0; hideSpots=[]; items=[];
     let baseI=s===15?20:(s===25?40:60);
+    let startI = itemMadness ? baseI * 2 : baseI;
+
     for(let i=0; i<s*2; i++){ let x,y; do{x=Math.floor(Math.random()*grid.length);y=Math.floor(Math.random()*grid.length);}while(grid[y][x]===1||(Math.abs(x-mazeCenter.x)<3&&Math.abs(y-mazeCenter.y)<3)); hideSpots.push({x,y});}
-    for(let i=0; i<baseI; i++){ let x,y; do{x=Math.floor(Math.random()*grid.length);y=Math.floor(Math.random()*grid.length);}while(grid[y][x]===1||(x===player.gridX&&y===player.gridY)); items.push({x,y,type:Math.random()<0.75?'orange':'yellow',active:false});}
+    for(let i=0; i<startI; i++) spawnRandomItem();
+
     monsters = []; let count=1+(chaos===4?4:chaos);
     for(let i=0; i<count; i++) monsters.push({ gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, isHunting:false, path:[], timer:0, nextAbility: performance.now()+5000 });
+    
     document.getElementById("menu").style.display="none"; isRunning=true; lastTime=performance.now(); requestAnimationFrame(loop);
 }
 
 function update(now) {
     if(!isRunning) return; let dt=(now-lastTime)/1000; lastTime=now;
+
+    if(itemMadness){ itemSpawnTimer+=dt; if(itemSpawnTimer>=1){ spawnRandomItem(); spawnRandomItem(); itemSpawnTimer=0; } }
     if(player.isHiding && (now-player.hideStartTime>3000)) player.isHiding=false;
 
     let anySniffing = false;
     monsters.forEach(m => {
-        // SNIFFING LOGIC
         if(!m.isSniffing && !m.isHunting && now > m.nextAbility) {
-            m.isSniffing = true;
-            m.timer = now;
-            m.isMoving = false;
+            m.isSniffing = true; m.timer = now; m.isMoving = false;
         }
 
         if(m.isSniffing) {
@@ -125,7 +179,7 @@ function update(now) {
                 }
                 m.nextAbility = now + 8000 + Math.random()*5000;
             }
-            return; // Stopp bevegelse mens han lukter
+            return;
         }
 
         if(!m.isMoving) {
@@ -139,7 +193,7 @@ function update(now) {
             }
             if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
         } else {
-            let speed = m.isHunting ? 160 : 320; // 2x speed når han jakter (160ms vs 320ms per rute)
+            let speed = m.isHunting ? 160 : 320;
             let t=Math.min((now-m.moveStart)/speed, 1);
             m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
             if(t===1){ m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false; }
