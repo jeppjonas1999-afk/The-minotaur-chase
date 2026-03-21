@@ -66,7 +66,7 @@
             <div id="modifiers-panel">
                 <div class="mod-card">
                     <div class="mod-img"><div class="mod-title">minotaur chaos</div></div>
-                    <p class="mod-desc">Flere monstre.<br>De mister jukse-sansen.</p>
+                    <p class="mod-desc">Flere monstre.<br>De sprer seg ut.</p>
                     <div class="mod-btns">
                         <button id="btn-chaos-1" onclick="toggleChaos(1)">1</button>
                         <button id="btn-chaos-2" onclick="toggleChaos(2)">2</button>
@@ -103,7 +103,7 @@ function toggleChaos(lvl) {
     for(let i=1; i<=4; i++) document.getElementById('btn-chaos-'+i).className = (i === chaosLevel) ? 'active' : '';
 }
 function initMenu() {
-    const tips = ["Gule lamper er nå ekstremt sjeldne!", "Chaos 4 fjerner monster-evner helt.", "Søppelkasser lyser svakt i mørket."];
+    const tips = ["De ser deg i lange korridorer!", "Chaos-monstre sprer seg ut.", "Løp når de ser deg!"];
     document.getElementById("menu-tip").innerText = tips[Math.floor(Math.random() * tips.length)];
 }
 
@@ -119,9 +119,9 @@ let minigame = { active: false, progress: 50, targetKey: 'w' };
 
 const mapSettings = { 15: { loot: 20, spots: 10 }, 25: { loot: 40, spots: 15 }, 45: { loot: 60, spots: 30 } };
 const diffSettings = {
-    easy: { mSpeed: 0.8, abMin: 60000, abMax: 90000, scentError: 80, mgDrain: 13.3, mgFill: 20, soundChance: 0 },
-    medium: { mSpeed: 1.1, abMin: 45000, abMax: 75000, scentError: 50, mgDrain: 25.0, mgFill: 20, soundChance: 5 },
-    hard: { mSpeed: 1.7, abMin: 20000, abMax: 45000, scentError: 30, mgDrain: 50.0, mgFill: 15, soundChance: 10 }
+    easy: { mSpeed: 0.8, soundChance: 0 },
+    medium: { mSpeed: 1.1, soundChance: 1 },
+    hard: { mSpeed: 1.5, soundChance: 3 }
 };
 
 function start() {
@@ -140,10 +140,10 @@ function start() {
         monsters.push({
             gridX: mx, gridY: my, renderX: mx*tileSize, renderY: my*tileSize, targetX: mx, targetY: my,
             isMoving: false, moveStart: 0, waitEnd: 0, baseSpeedMult: dConf.mSpeed,
-            abilityActive: false, nextAbilityTime: performance.now() + (Math.random()*5000 + 5000),
+            abilityActive: false, nextAbilityTime: performance.now() + 5000,
             speedBoost: 1, scentX: -1, scentY: -1, rotation: 0, retreating: false, retreatEnd: 0,
             hasAbility: chaosLevel < 4, cdMult: (chaosLevel > 0 && chaosLevel < 4) ? 3 : 1, 
-            blindMode: chaosLevel >= 2
+            blindMode: chaosLevel >= 2, isAggro: false
         });
     }
     spawnExtras(mapSettings[s].loot, mapSettings[s].spots);
@@ -178,6 +178,18 @@ function spawnExtras(loot, spots) {
     }
 }
 
+function hasLineOfSight(m) {
+    if (player.isHiding) return false;
+    if (m.gridX !== player.gridX && m.gridY !== player.gridY) return false;
+    let dx = Math.sign(player.gridX - m.gridX), dy = Math.sign(player.gridY - m.gridY);
+    let curX = m.gridX + dx, curY = m.gridY + dy;
+    while (curX !== player.gridX || curY !== player.gridY) {
+        if (grid[curY][curX] === 1) return false;
+        curX += dx; curY += dy;
+    }
+    return true;
+}
+
 function triggerSoundTrap(now) {
     const dConf = diffSettings[document.getElementById("diff").value];
     if (Math.random() * 100 > dConf.soundChance) return;
@@ -200,35 +212,42 @@ function update(now) {
     const dConf = diffSettings[document.getElementById("diff").value];
 
     if (minigame.active) {
-        minigame.progress -= dConf.mgDrain * dt;
+        minigame.progress -= 25 * dt;
         monsters.forEach(m => { if(!m.isMoving) { 
             let adj = [[0,-1],[0,1],[-1,0],[1,0]].map(([dx,dy])=>({x:player.gridX+dx,y:player.gridY+dy})).filter(p=>grid[p.y]&&grid[p.y][p.x]===0);
             if(adj.length){ let n=adj[Math.floor(Math.random()*adj.length)]; m.isMoving=true; m.moveStart=now; m.targetX=n.x; m.targetY=n.y; }
         }});
         if (minigame.progress <= 0) { isRunning = false; document.getElementById("jumpscare").style.display = "flex"; setTimeout(()=>location.reload(), 2000); }
-        else if (minigame.progress >= 100) { minigame.active=false; player.isHiding=false; player.hideCooldown=now+10000; monsters.forEach(m=>{m.retreating=true; m.retreatEnd=now+2000; m.speedBoost=8.0; m.scentX=-1; m.abilityActive=false;}); }
+        else if (minigame.progress >= 100) { minigame.active=false; player.isHiding=false; player.hideCooldown=now+10000; monsters.forEach(m=>{m.retreating=true; m.retreatEnd=now+2000; m.speedBoost=5.0; m.scentX=-1; m.isAggro=false;}); }
     } else {
         monsters.forEach(m => {
-            if(m.hasAbility && now > m.nextAbilityTime && !m.abilityActive && !m.retreating && !player.isHiding) {
-                m.abilityActive = true; m.waitEnd = now + 2500; m.scentX = player.gridX; m.scentY = player.gridY;
-                setTimeout(() => { if(m.scentX !== -1) m.speedBoost = 2.0; }, 2500);
-            }
-            if(player.isHiding && m.abilityActive) { m.abilityActive=false; m.speedBoost=1; m.scentX=-1; m.nextAbilityTime=now+(Math.random()*10000*m.cdMult); }
+            // Check Line of Sight (Aggro)
+            if (hasLineOfSight(m)) { m.isAggro = true; m.scentX = player.gridX; m.scentY = player.gridY; } 
+            else if (m.isAggro && m.gridX === m.scentX && m.gridY === m.scentY) { m.isAggro = false; }
+
+            let currentSpeed = m.isAggro ? 1.5 : 1.0;
+
             if(!m.isMoving && now > m.waitEnd) {
                 let tx, ty;
                 if(m.retreating) {
                     if(now > m.retreatEnd){ m.retreating=false; m.speedBoost=1; }
                     else { let best={d:-1,x:0,y:0}; [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx,dy])=>{ let nx=m.gridX+dx,ny=m.gridY+dy; if(grid[ny]&&grid[ny][nx]===0){ let d=Math.abs(nx-player.gridX)+Math.abs(ny-player.gridY); if(d>best.d)best={d,x:nx,y:ny}; }}); if(best.d>-1){m.isMoving=true; m.moveStart=now; m.targetX=best.x; m.targetY=best.y;} }
                 } else {
-                    if(m.blindMode && m.scentX === -1) { do { tx=Math.floor(Math.random()*(grid[0].length-2))+1; ty=Math.floor(Math.random()*(grid.length-2))+1; } while(grid[ty][tx]===1); }
-                    else if(m.scentX !== -1) { tx=m.scentX; ty=m.scentY; }
-                    else { let e = (chaosLevel === 1 ? 150 : dConf.scentError); tx=Math.max(1,Math.min(grid[0].length-2, player.gridX+Math.floor((Math.random()-0.5)*e))); ty=Math.max(1,Math.min(grid.length-2, player.gridY+Math.floor((Math.random()-0.5)*e))); }
+                    if(m.isAggro || m.scentX !== -1) { tx = m.scentX; ty = m.scentY; }
+                    else if(m.blindMode) { do { tx=Math.floor(Math.random()*(grid[0].length-2))+1; ty=Math.floor(Math.random()*(grid.length-2))+1; } while(grid[ty][tx]===1); }
+                    else { let e = (chaosLevel === 1 ? 150 : 50); tx=Math.max(1,Math.min(grid[0].length-2, player.gridX+Math.floor((Math.random()-0.5)*e))); ty=Math.max(1,Math.min(grid.length-2, player.gridY+Math.floor((Math.random()-0.5)*e))); }
+                    
                     let q=[{x:m.gridX,y:m.gridY,p:[]}], v=new Set([m.gridX+','+m.gridY]), next=null;
                     while(q.length>0){ let c=q.shift(); if(c.x===tx&&c.y===ty){next=c.p[0];break;} [[0,-1],[0,1],[-1,0],[1,0]].forEach(([dx,dy])=>{let nx=c.x+dx,ny=c.y+dy; if(grid[ny]&&grid[ny][nx]===0&&!v.has(nx+','+ny)){v.add(nx+','+ny); q.push({x:nx,y:ny,p:[...c.p,{x:nx,y:ny}]});}}); }
-                    if(next){ m.isMoving=true; m.moveStart=now; m.targetX=next.x; m.targetY=next.y; } else m.waitEnd=now+500;
+                    if(next){ m.isMoving=true; m.moveStart=now; m.targetX=next.x; m.targetY=next.y; } else m.waitEnd=now+200;
                 }
             }
-            if(m.isMoving){ let s=(moveTime/(m.baseSpeedMult*m.speedBoost)); let t=Math.min((now-m.moveStart)/s,1); m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize; if(t===1){m.isMoving=false; m.gridX=m.targetX; m.gridY=m.targetY; if(m.gridX===m.scentX&&m.gridY===m.scentY){m.scentX=-1; m.speedBoost=1; m.nextAbilityTime=now+(Math.random()*15000*m.cdMult);}} }
+            if(m.isMoving){ 
+                let s=(moveTime/(m.baseSpeedMult*m.speedBoost*currentSpeed)); 
+                let t=Math.min((now-m.moveStart)/s,1); 
+                m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize; 
+                if(t===1){m.isMoving=false; m.gridX=m.targetX; m.gridY=m.targetY; if(!m.isAggro && m.gridX===m.scentX && m.gridY===m.scentY) m.scentX=-1;} 
+            }
             m.rotation += 0.07;
         });
 
@@ -256,7 +275,13 @@ function loop(now) {
     hideSpots.forEach(s=>{ ctx.fillStyle="rgba(0,100,0,0.4)"; ctx.fillRect(s.x*tileSize+ox+5,s.y*tileSize+oy+5,tileSize-10,tileSize-10); });
     items.forEach(it=>{ ctx.fillStyle=it.type==='orange'?"#ffa500":"#ffff00"; ctx.beginPath(); ctx.arc(it.x*tileSize+ox+20,it.y*tileSize+oy+20,8,0,Math.PI*2); ctx.fill(); });
     ctx.fillStyle="#0f0"; ctx.fillRect(exit.x*tileSize+ox+10,exit.y*tileSize+oy+10,20,20);
-    monsters.forEach(m=>{ ctx.fillStyle=m.speedBoost>1?(m.retreating?"#00f":"#f00"):"#600"; ctx.beginPath(); ctx.arc(m.renderX+ox+20,m.renderY+oy+20,14,0,Math.PI*2); ctx.fill(); if(m.abilityActive){ ctx.save(); ctx.translate(m.renderX+ox+20,m.renderY+oy+20); ctx.rotate(m.rotation); ctx.strokeStyle="#f00"; ctx.lineWidth=3; for(let i=0;i<4;i++){ ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(40,-8); ctx.lineTo(50,0); ctx.lineTo(40,8); ctx.stroke(); } ctx.restore(); } });
+    
+    monsters.forEach(m=>{ 
+        ctx.fillStyle=m.isAggro?"#f00":(m.retreating?"#00f":"#600"); 
+        ctx.beginPath(); ctx.arc(m.renderX+ox+20,m.renderY+oy+20,14,0,Math.PI*2); ctx.fill(); 
+        if(m.isAggro){ ctx.strokeStyle="#f00"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(m.renderX+ox+20,m.renderY+oy+20,20,0,Math.PI*2); ctx.stroke(); }
+    });
+
     if(!player.isHiding){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(canvas.width/2,canvas.height/2,10,0,Math.PI*2); ctx.fill(); }
     let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
     tc.fillStyle="rgba(0,0,0,0.98)"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
@@ -269,9 +294,27 @@ function loop(now) {
 }
 
 const keys={};
-window.onkeydown=e=>{ let k=e.key.toLowerCase(); keys[k]=true; if(minigame.active && ['w','a','s','d'].includes(k)){ if(k===minigame.targetKey){ minigame.progress=Math.min(100,minigame.progress+20); minigame.targetKey=['w','a','s','d'].filter(x=>x!==k)[Math.floor(Math.random()*3)]; } return; } if(k==='e'){ let i=items.findIndex(it=>it.x===player.gridX&&it.y===player.gridY); if(i!==-1){ if(items[i].type==='orange')placedLights.push({x:player.gridX,y:player.gridY}); else player.visionRadius+=60; items.splice(i,1); return; } let s=hideSpots.some(h=>h.x===player.gridX&&h.y===player.gridY); if(s&&now()>player.hideCooldown&&!player.isHiding){ player.isHiding=true; let chase=monsters.some(m=>m.abilityActive||Math.abs(m.gridX-player.gridX)+Math.abs(m.gridY-player.gridY)<10); if(chase){minigame.active=true; minigame.progress=50;} else player.hideEnd=performance.now()+3000; }}};
+window.onkeydown=e=>{ 
+    let k=e.key.toLowerCase(); keys[k]=true; 
+    if(minigame.active && ['w','a','s','d'].includes(k)){ 
+        if(k===minigame.targetKey){ 
+            minigame.progress=Math.min(100,minigame.progress+15); 
+            minigame.targetKey=['w','a','s','d'].filter(x=>x!==k)[Math.floor(Math.random()*3)]; 
+        } 
+        return; 
+    } 
+    if(k==='e'){ 
+        let i=items.findIndex(it=>it.x===player.gridX&&it.y===player.gridY); 
+        if(i!==-1){ if(items[i].type==='orange')placedLights.push({x:player.gridX,y:player.gridY}); else player.visionRadius+=60; items.splice(i,1); return; } 
+        let s=hideSpots.some(h=>h.x===player.gridX&&h.y===player.gridY); 
+        if(s&&performance.now()>player.hideCooldown&&!player.isHiding){ 
+            player.isHiding=true; 
+            let chase=monsters.some(m=>m.isAggro||Math.abs(m.gridX-player.gridX)+Math.abs(m.gridY-player.gridY)<10); 
+            if(chase){minigame.active=true; minigame.progress=50;} else player.hideEnd=performance.now()+3000; 
+        }
+    }
+};
 window.onkeyup=e=>keys[e.key.toLowerCase()]=false;
-function now(){return performance.now();}
 </script>
 </body>
 </html>
