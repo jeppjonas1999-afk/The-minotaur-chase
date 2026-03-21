@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.4.2 Stealth Traps</title>
+    <title>Minotaur: The Vault - v.4.3 Balanced Traps</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
@@ -36,7 +36,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.4.2 STEALTH TRAPS</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.4.3 BALANCED TRAPS</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -97,7 +97,8 @@ function start() {
     player.gridX=1; player.gridY=grid.length-2; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
     player.visionBonus=0; player.slowTimer=0; hideSpots=[]; items=[]; traps=[];
     if(trapLevel > 0) {
-        let count = (trapLevel === 1 ? 25 : 50) * s;
+        // NYE MENGDER: 15x og 25x
+        let count = (trapLevel === 1 ? 15 : 25) * s;
         for(let i=0; i<count; i++) {
             let x,y, tries=0;
             do { x=Math.floor(Math.random()*grid.length); y=Math.floor(Math.random()*grid.length); tries++; }
@@ -186,7 +187,6 @@ function loop(now) {
     }
     traps.forEach(t => {
         if(!t.active && t.anim <= 0) return;
-        // OPPDATERTE FARGER HER:
         ctx.fillStyle = t.type === 'sound' ? "#1a1a1a" : (t.type === 'glue' ? "#eee8aa" : "#8b5a2b");
         if(t.active) ctx.fillRect(t.x*tileSize+ox+15, t.y*tileSize+oy+15, 10, 10);
         if(t.anim > 0) {
