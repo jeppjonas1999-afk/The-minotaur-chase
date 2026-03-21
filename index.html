@@ -2,47 +2,33 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault</title>
+    <title>Minotaur: The Vault - Brightness Update</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
-        
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
-        
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
-        
-        /* HOVEDBOKS */
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
-        
-        /* 3x3 MODIFIER GRID */
         #modifiers-panel { 
             display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; 
             border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
         }
-        
-        /* PLUSS KNAPP */
         #expand-btn { 
             position: absolute; right: -50px; top: 50%; transform: translateY(-50%); 
             width: 50px; height: 100px; background: #222; border: 2px solid #333; 
             border-left: none; color: #fff; font-size: 30px; cursor: pointer; 
             display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; 
         }
-
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; }
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
-
-        /* MODIFIER CARDS */
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; }
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
-        
-        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; }
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; }
         .mod-btns { display: flex; gap: 2px; width: 100%; }
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
-
-        /* UI */
         #hunt-warning { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-size: 24px; font-weight: bold; display: none; text-shadow: 0 0 15px #f00; z-index: 200; text-align: center; }
         #mg-container { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 300px; display: none; z-index: 1001; text-align: center; }
         #mg-bar-bg { width: 100%; height: 20px; background: #111; border: 2px solid #fff; }
@@ -62,32 +48,28 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.2.0 CHAOS UPDATE</p>
-                
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.2.1 VISION UPDATE</p>
                 <span class="menu-label">Map Size</span>
-                <select id="size">
-                    <option value="15">SMALL</option>
-                    <option value="25" selected>MEDIUM</option>
-                    <option value="40">LARGE</option>
-                </select>
-
+                <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
-                <select id="diff">
-                    <option value="easy">EASY</option>
-                    <option value="hard" selected>HARD</option>
-                    <option value="insane">INSANE</option>
-                </select>
-
+                <select id="diff"><option value="easy">EASY</option><option value="hard" selected>HARD</option><option value="insane">INSANE</option></select>
                 <button class="start-btn" onclick="start()">START GAME</button>
             </div>
 
             <div id="modifiers-panel">
                 <div class="mod-slot mod-active">
-                    <div class="mod-img"><div style="color:#000; text-align:center; padding-top:15%;">CHAOS</div></div>
+                    <div class="mod-img">CHAOS</div>
                     <div class="mod-btns">
                         <button id="c1" onclick="setChaos(1)">1</button>
                         <button id="c2" onclick="setChaos(2)">2</button>
                         <button id="c3" onclick="setChaos(3)">3</button>
+                    </div>
+                </div>
+                <div class="mod-slot mod-active">
+                    <div class="mod-img" style="background: #ffd700;">LIGHT</div>
+                    <div class="mod-btns">
+                        <button id="b0" class="active" onclick="setBrightness(false)">OFF</button>
+                        <button id="b1" onclick="setBrightness(true)">ON</button>
                     </div>
                 </div>
                 <div class="mod-slot">???</div>
@@ -97,9 +79,7 @@
                 <div class="mod-slot">???</div>
                 <div class="mod-slot">???</div>
                 <div class="mod-slot">???</div>
-                <div class="mod-slot">???</div>
             </div>
-
             <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
     </div>
@@ -107,7 +87,7 @@
     <canvas id="game"></canvas>
 
 <script>
-let chaos = 0, isRunning = false, lastTime = 0, grid = [], hideSpots = [], monsters = [], keys = {};
+let chaos = 0, fullBright = false, isRunning = false, lastTime = 0, grid = [], hideSpots = [], monsters = [], keys = {};
 const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
 const tileSize = 40, baseMoveTime = 320;
 
@@ -123,6 +103,11 @@ function togglePanel() {
 function setChaos(n) { 
     chaos = (chaos === n) ? 0 : n; 
     [1,2,3].forEach(i => document.getElementById('c'+i).className = (i===chaos?'active':'')); 
+}
+function setBrightness(val) {
+    fullBright = val;
+    document.getElementById('b0').className = !val ? 'active' : '';
+    document.getElementById('b1').className = val ? 'active' : '';
 }
 
 function generate(size) {
@@ -143,7 +128,6 @@ function start() {
     generate(s);
     player.gridX = 1; player.gridY = grid.length-2;
     player.renderX = player.gridX*tileSize; player.renderY = player.gridY*tileSize;
-    
     hideSpots = [];
     for(let i=0; i<s*2; i++) {
         let x, y;
@@ -151,17 +135,13 @@ function start() {
         while(grid[y][x]===1);
         hideSpots.push({x, y});
     }
-
     monsters = [];
     for(let i=0; i<(1+chaos); i++) {
         monsters.push({
             gridX: Math.floor(grid.length/2), gridY: Math.floor(grid.length/2),
-            renderX: 0, renderY: 0, isMoving: false, 
-            isSniffing: false, showArrows: false, isHunting: false,
-            moveStart: 0, targetX: 0, targetY: 0
+            renderX: 0, renderY: 0, isMoving: false, isSniffing: false, showArrows: false, isHunting: false, moveStart: 0, targetX: 0, targetY: 0
         });
     }
-
     document.getElementById("menu").style.display = "none";
     isRunning = true; lastTime = performance.now();
     requestAnimationFrame(loop);
@@ -173,22 +153,16 @@ function update(now) {
     arrowRot += dt * 5;
 
     monsters.forEach(m => {
-        // SNIFFING SEKVENESEN
         if(!m.isSniffing && !m.isHunting && Math.random() < 0.001) {
             m.isSniffing = true;
             document.getElementById("hunt-warning").style.display = "block";
-            
             setTimeout(() => {
                 document.getElementById("hunt-warning").style.display = "none";
                 m.showArrows = true; 
                 if (!player.isHiding) m.isHunting = true;
-
-                setTimeout(() => {
-                    m.isSniffing = false; m.isHunting = false; m.showArrows = false;
-                }, 5000);
+                setTimeout(() => { m.isSniffing = false; m.isHunting = false; m.showArrows = false; }, 5000);
             }, 2500);
         }
-
         if(!m.isMoving) {
             let tx = m.isHunting ? player.gridX : Math.floor(Math.random()*grid.length);
             let ty = m.isHunting ? player.gridY : Math.floor(Math.random()*grid.length);
@@ -225,54 +199,39 @@ function update(now) {
         if(minigame.progress <= 0) location.reload();
         if(minigame.progress >= 100) { minigame.active = false; player.isHiding = false; document.getElementById("mg-container").style.display = "none"; }
     }
-
     if(!player.isHiding && monsters.some(m => Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY) < 30)) location.reload();
-}
-
-function drawArrows(m, ox, oy) {
-    if(!m.showArrows) return;
-    ctx.save();
-    ctx.translate(m.renderX + ox + 20, m.renderY + oy + 20);
-    ctx.rotate(arrowRot);
-    for(let i=0; i<4; i++) {
-        ctx.rotate(Math.PI/2);
-        ctx.fillStyle = m.isHunting ? "red" : "orange";
-        ctx.beginPath();
-        ctx.moveTo(35, 0); ctx.lineTo(20, -10); ctx.lineTo(20, 10);
-        ctx.fill();
-    }
-    ctx.restore();
 }
 
 function loop(now) {
     if(!isRunning) return; update(now);
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     const ox = canvas.width/2 - player.renderX - 20, oy = canvas.height/2 - player.renderY - 20;
-
     ctx.fillStyle = "#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) {
         if(grid[y][x] === 1) { ctx.fillStyle = "#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     }
-
     hideSpots.forEach(s => { ctx.fillStyle = "#040"; ctx.fillRect(s.x*tileSize+ox+10, s.y*tileSize+oy+10, 20, 20); });
-
     monsters.forEach(m => {
         ctx.fillStyle = m.isHunting ? "#f00" : (m.isSniffing ? "#a50" : "#600");
         ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 15, 0, Math.PI*2); ctx.fill();
-        drawArrows(m, ox, oy);
+        if(m.showArrows) {
+            ctx.save(); ctx.translate(m.renderX + ox + 20, m.renderY + oy + 20); ctx.rotate(arrowRot);
+            for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.fillStyle = m.isHunting ? "red" : "orange"; ctx.beginPath(); ctx.moveTo(35, 0); ctx.lineTo(20, -10); ctx.lineTo(20, 10); ctx.fill(); }
+            ctx.restore();
+        }
     });
-
     if(!player.isHiding) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill(); }
 
-    let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
-    let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
-    tc.globalCompositeOperation = "destination-out";
-    let vRad = player.isHiding ? 400 : 180;
-    let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
-    g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
-    tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
-    ctx.drawImage(t, 0, 0);
-
+    if(!fullBright) {
+        let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
+        let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
+        tc.globalCompositeOperation = "destination-out";
+        let vRad = player.isHiding ? 400 : 180;
+        let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
+        g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
+        tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
+        ctx.drawImage(t, 0, 0);
+    }
     requestAnimationFrame(loop);
 }
 
