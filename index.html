@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.5.6 Smart AI Update</title>
+    <title>Minotaur: The Vault - v.5.7 Trashcan Minigame</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -27,7 +27,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.6 SMART PREY</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.7 COMBAT UPDATE</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -50,6 +50,8 @@
 <script>
 let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, lastTime=0, grid=[], items=[], humans=[], monsters=[], revealPath=[], revealTimer=0;
 let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, isSniffing:false, sniffStart:0, nextAbility:0, speedBoostEnd:0 };
+let minigame = { active: false, human: null, progress: 50, lastTick: 0, nextPulse: 0 };
+let minotaurAI = { active: false, stepsLeft: 0, escapeFromX: 0, escapeFromY: 0 };
 let mazeCenter={x:0,y:0}, difficultyMult=1.2, baseHumanSpeed=320;
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d"), tileSize=40;
 
@@ -73,6 +75,7 @@ function getPath(sx, sy, tx, ty) {
 }
 
 function start() {
+    minigame.active = false; minotaurAI.active = false;
     difficultyMult = document.getElementById("diff").value==='easy'?0.8 : (document.getElementById("diff").value==='hard'?1.2 : 1.5);
     let s=parseInt(document.getElementById("size").value), dim=s*2+1;
     grid=Array.from({length:dim},()=>Array(dim).fill(1)); mazeCenter={x:Math.floor(dim/2), y:Math.floor(dim/2)};
@@ -81,7 +84,6 @@ function start() {
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
 
-    // Generer gjenstander (Søppelkasser)
     items=[];
     let itemCount = itemMadness ? 40 : 15;
     for(let i=0; i<itemCount; i++) {
@@ -92,7 +94,6 @@ function start() {
     humans=[]; monsters=[]; revealTimer=0;
     if(!uMinoMode){ player.gridX=1; player.gridY=dim-2; } else {
         player.gridX=mazeCenter.x; player.gridY=mazeCenter.y;
-        // KUN 4 Mennesker
         for(let i=0; i<4; i++) {
             let hx, hy; do{hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim);}while(grid[hy][hx]===1||Math.hypot(hx-mazeCenter.x,hy-mazeCenter.y)<5);
             humans.push({gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0, hasEscaped:false, isHidden:false, path:[], visited:new Set([hx+','+hy]), hideTarget:null});
@@ -108,6 +109,33 @@ function start() {
 
 function update(now) {
     if(!isRunning) return;
+
+    // SØPPELKASSE MINIGAME
+    if (minigame.active) {
+        let dt = now - minigame.lastTick;
+        minigame.lastTick = now;
+        minigame.progress -= (15 * (dt / 1000)); // Constant drain
+
+        if (now >= minigame.nextPulse) {
+            let diffVal = document.getElementById("diff").value;
+            let bumpVal = diffVal === 'easy' ? 25 : (diffVal === 'hard' ? 10 : 20);
+            minigame.progress -= bumpVal;
+            minigame.nextPulse = now + 500;
+        }
+
+        if (minigame.progress >= 100) {
+            minigame.active = false;
+            minigame.human.isHidden = false; // Vinner: Mennesket blir utsatt og spist neste frame
+        } else if (minigame.progress <= 0) {
+            minigame.active = false;
+            minigame.human.isHidden = false; // Taper: Mennesket rømmer
+            minotaurAI.active = true;
+            minotaurAI.stepsLeft = 15;
+            minotaurAI.escapeFromX = minigame.human.gridX;
+            minotaurAI.escapeFromY = minigame.human.gridY;
+        }
+        return; // Fryser alt annet i spillet!
+    }
     
     // AI MONSTERS (Standard mode)
     monsters.forEach(m => {
@@ -139,38 +167,30 @@ function update(now) {
         humans.forEach(h => {
             if(h.isDead || h.hasEscaped) return;
 
-            // KAMP I SØPPELKASSEN
+            // KAMP I SØPPELKASSEN TRIGGER
             if(h.isHidden) {
-                if(player.gridX === h.gridX && player.gridY === h.gridY) {
-                    let diffVal = document.getElementById("diff").value;
-                    let survivalChance = diffVal === 'easy' ? 0.75 : (diffVal === 'hard' ? 0.50 : 0.25);
-                    
-                    if(Math.random() < survivalChance) {
-                        // Mennesket vinner og sparker deg unna!
-                        let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[player.gridY+d[1]]&&grid[player.gridY+d[1]][player.gridX+d[0]]===0);
-                        if(dirs.length>0){ player.gridX+=dirs[0][0]; player.gridY+=dirs[0][1]; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize; player.isMoving=false; }
-                        h.isHidden = false; // De hopper ut
-                    } else {
-                        // Minotauren vinner
-                        h.isDead = true; h.isHidden = false;
-                    }
+                if(player.gridX === h.gridX && player.gridY === h.gridY && !minigame.active && !minotaurAI.active) {
+                    minigame.active = true;
+                    minigame.human = h;
+                    minigame.progress = 50;
+                    minigame.lastTick = now;
+                    minigame.nextPulse = now + 500;
                 }
-                return; // Ikke beveg deg mens du er gjemt
+                return; 
             }
 
-            // Standard kollisjonsdød ute i det fri
-            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25) { h.isDead=true; return; }
+            // Kollisjonsdød (Dør bare hvis Minotauren IKKE styres av AI/løper vekk)
+            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25 && !minotaurAI.active) { h.isDead=true; return; }
             
             // Har de nådd midten? (Rømt)
             if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { h.hasEscaped = true; return; }
 
             let distToPlayer = Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY);
-            let seesPlayer = distToPlayer < 250 || player.isSniffing; // Sniffing røper deg alltid
-            let currentSpeed = seesPlayer ? (baseHumanSpeed / 1.1) : baseHumanSpeed; // 1.1x fart i panikk
+            let seesPlayer = distToPlayer < 250 || player.isSniffing; 
+            let currentSpeed = seesPlayer ? (baseHumanSpeed / 1.1) : baseHumanSpeed; 
 
             if(!h.isMoving) {
                 if(seesPlayer) {
-                    // PANIKK - finn nærmeste søppelkasse
                     if(!h.hideTarget) {
                         let closestCan = null, minDist = Infinity;
                         items.forEach(it => {
@@ -179,7 +199,7 @@ function update(now) {
                                 if(d < minDist) { minDist = d; closestCan = it; }
                             }
                         });
-                        if(closestCan && minDist < 15) { // Bare gjem seg hvis den ikke er alt for langt unna
+                        if(closestCan && minDist < 15) { 
                             h.path = getPath(h.gridX, h.gridY, closestCan.gridX, closestCan.gridY);
                             h.hideTarget = closestCan;
                         }
@@ -190,7 +210,6 @@ function update(now) {
                         h.targetX = step.x; h.targetY = step.y;
                         h.isMoving = true; h.moveStart = now;
                     } else {
-                        // Finner ingen boks? Løp vekk fra spilleren
                         let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
                         ds.sort((a,b) => {
                             let da = Math.hypot((h.gridX+a[0])*tileSize-player.renderX, (h.gridY+a[1])*tileSize-player.renderY);
@@ -200,12 +219,10 @@ function update(now) {
                         if(ds.length>0) { h.targetX = h.gridX+ds[0][0]; h.targetY = h.gridY+ds[0][1]; h.isMoving=true; h.moveStart=now; }
                     }
                 } else {
-                    // LÆRENDE AI - Leter etter midten
                     h.hideTarget = null;
                     h.path = [];
                     h.visited.add(h.gridX+','+h.gridY);
 
-                    // Husker de hvor midten er hvis de er nære?
                     if(Math.hypot(h.gridX-mazeCenter.x, h.gridY-mazeCenter.y) < 10 && Math.random() < 0.25) {
                         h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
                     }
@@ -215,7 +232,6 @@ function update(now) {
                         h.targetX = step.x; h.targetY = step.y;
                         h.isMoving = true; h.moveStart = now;
                     } else {
-                        // Utforsk, prioriter felt de ikke har vært på
                         let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
                         let unvisited = ds.filter(d => !h.visited.has((h.gridX+d[0])+','+(h.gridY+d[1])));
                         let f = unvisited.length > 0 ? unvisited[Math.floor(Math.random()*unvisited.length)] : ds[Math.floor(Math.random()*ds.length)];
@@ -235,8 +251,30 @@ function update(now) {
         });
     }
 
-    // PLAYER MOVEMENT
-    if(!player.isMoving && !player.isSniffing) {
+    // PLAYER MOVEMENT (Minotaur AI Straff & Normal Styring)
+    if(minotaurAI.active) {
+        if(!player.isMoving) {
+            if(minotaurAI.stepsLeft > 0) {
+                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[player.gridY+d[1]]&&grid[player.gridY+d[1]][player.gridX+d[0]]===0);
+                ds.sort((a,b) => {
+                    let da = Math.hypot(player.gridX+a[0]-minotaurAI.escapeFromX, player.gridY+a[1]-minotaurAI.escapeFromY);
+                    let db = Math.hypot(player.gridX+b[0]-minotaurAI.escapeFromX, player.gridY+b[1]-minotaurAI.escapeFromY);
+                    return db - da; 
+                });
+                if(ds.length>0) {
+                    player.isMoving = true; player.moveStart = now; 
+                    player.targetX = player.gridX+ds[0][0]; player.targetY = player.gridY+ds[0][1];
+                    minotaurAI.stepsLeft--;
+                } else { minotaurAI.active = false; }
+            } else { minotaurAI.active = false; }
+        } else {
+            let speed = (baseHumanSpeed / difficultyMult);
+            let t=Math.min((now-player.moveStart)/speed, 1); 
+            player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; 
+            player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
+            if(t===1){player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false;}
+        }
+    } else if(!player.isMoving && !player.isSniffing) {
         let dx=0, dy=0; if(window.keys?.w) dy=-1; else if(window.keys?.s) dy=1; else if(window.keys?.a) dx=-1; else if(window.keys?.d) dx=1;
         if(dx||dy){ let nx=player.gridX+dx, ny=player.gridY+dy; if(grid[ny]&&grid[ny][nx]===0){player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny;} }
     } else if(player.isMoving) {
@@ -254,19 +292,16 @@ function loop(now) {
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     
-    // Tegn Søppelkasser
     items.forEach(it => {
         ctx.fillStyle = "#333"; ctx.fillRect(it.gridX*tileSize+ox+8, it.gridY*tileSize+oy+8, 24, 24);
-        ctx.fillStyle = "#111"; ctx.fillRect(it.gridX*tileSize+ox+10, it.gridY*tileSize+oy+10, 20, 4); // Lokk
+        ctx.fillStyle = "#111"; ctx.fillRect(it.gridX*tileSize+ox+10, it.gridY*tileSize+oy+10, 20, 4); 
     });
 
-    // Tegn Rømningstau i midten
     ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+5, 8, 30);
-    for(let i=5; i<35; i+=5){ ctx.fillStyle="#000"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+i, 8, 1); } // Taudetaljer
+    for(let i=5; i<35; i+=5){ ctx.fillStyle="#000"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+i, 8, 1); } 
 
     if(revealTimer>now) { ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20); revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke(); }
     
-    // Tegn mennesker (bare de som IKKE er døde, rømt, eller gjemt i søppelet)
     humans.forEach(h=>{ 
         if(!h.isDead && !h.isHidden && !h.hasEscaped){
             ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill();
@@ -290,10 +325,44 @@ function loop(now) {
         tc.fillStyle=g; tc.beginPath(); tc.arc(t.width/2,t.height/2,vRad,0,Math.PI*2); tc.fill();
         ctx.drawImage(t,0,0);
     }
+
+    // TEGN MINIGAME UI
+    if (minigame.active) {
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(canvas.width/2 - 150, canvas.height/2 - 60, 300, 120);
+        
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 16px 'Courier New'";
+        ctx.textAlign = "center";
+        ctx.fillText("SPAM SPACE BAR!", canvas.width/2, canvas.height/2 - 20);
+        
+        ctx.fillStyle = "#333";
+        ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 10, 200, 25);
+        
+        ctx.fillStyle = "#f00";
+        ctx.fillRect(canvas.width/2 - 100, canvas.height/2 + 10, minigame.progress * 2, 25);
+        
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(canvas.width/2 - 100, canvas.height/2 + 10, 200, 25);
+    }
+
     requestAnimationFrame(loop);
 }
+
 window.keys = {};
-window.onkeydown=e=>{ window.keys[e.key.toLowerCase()]=true; if(e.key==='e') { if(uMinoMode && !player.isSniffing && performance.now()>player.nextAbility){player.isSniffing=true; player.sniffStart=performance.now();} } };
+window.onkeydown=e=>{ 
+    if(e.code === 'Space' || e.key === ' ') {
+        if(minigame.active) { minigame.progress += 8; }
+        e.preventDefault();
+    }
+    window.keys[e.key.toLowerCase()]=true; 
+    if(e.key==='e') { 
+        if(uMinoMode && !player.isSniffing && !minigame.active && !minotaurAI.active && performance.now()>player.nextAbility){
+            player.isSniffing=true; player.sniffStart=performance.now();
+        } 
+    } 
+};
 window.onkeyup=e=>window.keys[e.key.toLowerCase()]=false;
 function init(){}
 </script>
