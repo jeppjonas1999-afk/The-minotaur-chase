@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.3.9 Smart Sniffing</title>
+    <title>Minotaur: The Vault - v.4.0 Small Map Fix</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
@@ -25,7 +25,7 @@
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
-        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 10px;}
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 10px; }
         .mod-btns { display: flex; gap: 2px; width: 100%; }
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
@@ -41,7 +41,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.3.9 SMART SNIFF</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.4.0 FINAL MAP FIX</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -92,12 +92,28 @@ function getPath(sx, sy, tx, ty) {
 function generate(size) {
     let dim = size*2+1; grid = Array.from({length:dim},()=>Array(dim).fill(1));
     mazeCenter = {x:Math.floor(dim/2), y:Math.floor(dim/2)};
-    for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
-    grid[mazeCenter.y-2][mazeCenter.x]=0; grid[mazeCenter.y+2][mazeCenter.x]=0;
-    grid[mazeCenter.y][mazeCenter.x-2]=0; grid[mazeCenter.y][mazeCenter.x+2]=0;
-    let walls = []; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
+    
+    // 1. Standard Labyrint-generering
+    let walls = []; 
+    const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
     grid[1][1]=0; addW(1,1);
-    while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
+    while(walls.length>0) { 
+        let i=Math.floor(Math.random()*walls.length); 
+        let {x,y,wx,wy}=walls.splice(i,1)[0]; 
+        if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } 
+    }
+
+    // 2. TVING SEIER-ROMMET TIL Å VÆRE ÅPENT (Etter generering)
+    for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) {
+        for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) {
+            grid[y][x] = 0;
+        }
+    }
+    // Lag innganger fra alle fire retninger uansett hva
+    grid[mazeCenter.y-2][mazeCenter.x] = 0; // Nord
+    grid[mazeCenter.y+2][mazeCenter.x] = 0; // Sør
+    grid[mazeCenter.y][mazeCenter.x-2] = 0; // Vest
+    grid[mazeCenter.y][mazeCenter.x+2] = 0; // Øst
 }
 
 function spawnRandomItem() {
@@ -111,9 +127,9 @@ function start() {
     let s=parseInt(document.getElementById("size").value); generate(s);
     player.gridX=1; player.gridY=grid.length-2; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
     player.visionBonus=0; hideSpots=[]; items=[];
-    let baseI=s===15?20:(s===25?40:60); let startI = itemMadness ? baseI * 2 : baseI;
+    let baseI=s===15?20:(s===25?40:60);
     for(let i=0; i<s*2; i++){ let x,y; do{x=Math.floor(Math.random()*grid.length);y=Math.floor(Math.random()*grid.length);}while(grid[y][x]===1||(Math.abs(x-mazeCenter.x)<3&&Math.abs(y-mazeCenter.y)<3)); hideSpots.push({x,y});}
-    for(let i=0; i<startI; i++) spawnRandomItem();
+    for(let i=0; i<baseI; i++) spawnRandomItem();
     monsters = []; let count=1+(chaos===4?4:chaos);
     for(let i=0; i<count; i++) monsters.push({ gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, isHunting:false, path:[], timer:0, nextAbility: performance.now()+5000 });
     document.getElementById("menu").style.display="none"; isRunning=true; lastTime=performance.now(); requestAnimationFrame(loop);
@@ -133,25 +149,22 @@ function update(now) {
                 m.isSniffing = false;
                 if(!player.isHiding) {
                     m.isHunting = true;
-                    m.path = getPath(m.gridX, m.gridY, player.gridX, player.gridY); // BRUKER PATHFINDING HER
+                    m.path = getPath(m.gridX, m.gridY, player.gridX, player.gridY);
                 }
                 m.nextAbility = now + 8000 + Math.random()*5000;
             }
             return;
         }
-
         if(!m.isMoving) {
             let nx, ny;
-            if(m.isHunting && m.path.length > 0) { 
-                let step=m.path.shift(); nx=step.x; ny=step.y; 
-                if(m.path.length === 0) m.isHunting = false;
-            } else {
+            if(m.isHunting && m.path.length > 0) { let step=m.path.shift(); nx=step.x; ny=step.y; if(m.path.length === 0) m.isHunting = false; }
+            else {
                 let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0);
                 let f=dirs[Math.floor(Math.random()*dirs.length)]; if(f){ nx=m.gridX+f[0]; ny=m.gridY+f[1]; }
             }
             if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
         } else {
-            let speed = m.isHunting ? 160 : 320; // 2x speed under jakt
+            let speed = m.isHunting ? 160 : 320;
             let t=Math.min((now-m.moveStart)/speed, 1);
             m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
             if(t===1){ m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false; }
@@ -223,6 +236,7 @@ window.onkeydown = e => {
     }
 };
 window.onkeyup = e => keys[e.key.toLowerCase()] = false;
+function init() {}
 </script>
 </body>
 </html>
