@@ -2,78 +2,45 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.5.1 Speed & Balansering</title>
+    <title>Minotaur: The Vault - v.5.2 Fog Restored</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
-        
-        #settings-btn { position: absolute; top: 20px; left: 20px; font-size: 24px; cursor: pointer; color: #555; z-index: 110; transition: color 0.3s; }
-        #settings-btn:hover { color: #fff; }
-        #settings-menu { display: none; position: absolute; top: 60px; left: 20px; background: #111; border: 1px solid #333; padding: 15px; z-index: 110; min-width: 150px; }
-        
-        #modifiers-panel { 
-            display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; 
-            border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
-        }
-        #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; }
-        
-        .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold;}
-        select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
-        .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
-        
-        .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
-        .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
-        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 8px; }
-        .mod-btns { display: flex; gap: 2px; width: 100%; }
-        .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
-        .mod-btns button.active { background: #800; border-color: #f00; }
-
-        #mobile-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 50; }
-        .dpad { position: absolute; bottom: 40px; left: 40px; width: 150px; height: 150px; display: grid; grid-template-columns: repeat(3, 1fr); pointer-events: auto; }
-        .dpad button { background: rgba(50,50,50,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 20px; border-radius: 10px; }
-        #btn-interact { position: absolute; bottom: 60px; right: 40px; width: 80px; height: 80px; border-radius: 50%; background: rgba(136,0,0,0.5); border: 2px solid #800; color: #fff; font-weight: bold; pointer-events: auto; }
-
+        #settings-btn { position: absolute; top: 20px; left: 20px; font-size: 24px; cursor: pointer; color: #555; z-index: 110; }
+        #settings-menu { display: none; position: absolute; top: 60px; left: 20px; background: #111; border: 1px solid #333; padding: 15px; z-index: 110; }
+        #modifiers-panel { display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; }
+        select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; }
+        .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; }
+        .mod-slot { border: 1px dashed #222; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; background: #0a0a0a; }
+        .mod-active { border: 1px solid #444; background: #111; }
+        .mod-btns { display: flex; gap: 2px; width: 100%; padding: 2px; }
+        .mod-btns button { flex: 1; font-size: 9px; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
+        .mod-btns button.active { background: #800; }
         #jumpscare { position: fixed; inset: 0; background: #900; z-index: 5000; display: none; justify-content: center; align-items: center; }
         #jumpscare img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body onload="init()">
     <div id="jumpscare"><img src="https://i.imgur.com/vHqY7bE.png"></div>
-    
-    <div id="mobile-ui">
-        <div class="dpad">
-            <div style="grid-column: 2;"><button onmousedown="keys['w']=true" onmouseup="keys['w']=false" ontouchstart="keys['w']=true" ontouchend="keys['w']=false">↑</button></div>
-            <div style="grid-row: 2; grid-column: 1;"><button onmousedown="keys['a']=true" onmouseup="keys['a']=false" ontouchstart="keys['a']=true" ontouchend="keys['a']=false">←</button></div>
-            <div style="grid-row: 2; grid-column: 2;"><button onmousedown="keys['s']=true" onmouseup="keys['s']=false" ontouchstart="keys['s']=true" ontouchend="keys['s']=false">↓</button></div>
-            <div style="grid-row: 2; grid-column: 3;"><button onmousedown="keys['d']=true" onmouseup="keys['d']=false" ontouchstart="keys['d']=true" ontouchend="keys['d']=false">→</button></div>
-        </div>
-        <button id="btn-interact" onclick="handleInteract()">E</button>
-    </div>
-
     <div id="menu" class="overlay">
         <div id="settings-btn" onclick="toggleSettings()">⚙️</div>
-        <div id="settings-menu">
-            <label style="font-size: 10px;"><input type="checkbox" id="mobile-toggle"> Mobile Controls</label>
-        </div>
+        <div id="settings-menu"><label><input type="checkbox" id="mobile-toggle"> Mobile Controls</label></div>
         <div id="menu-wrapper">
             <div class="main-box">
-                <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.1 SPEED UPDATE</p>
+                <h1 style="color:#800; letter-spacing:5px;">MINOTAUR</h1>
                 <select id="gmode"><option value="standard">ESCAPE</option><option value="uminotaur">U MINOTAUR</option></select>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
-                <select id="diff"><option value="easy">EASY (0.8x)</option><option value="hard" selected>HARD (1.2x)</option><option value="insane">INSANE (1.5x)</option></select>
-                <button class="start-btn" onclick="start()">START GAME</button>
+                <select id="diff"><option value="easy">EASY</option><option value="hard" selected>HARD</option><option value="insane">INSANE</option></select>
+                <button class="start-btn" onclick="start()">START</button>
             </div>
             <div id="modifiers-panel">
-                <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
-                <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightness(false)">OFF</button><button id="b1" onclick="setBrightness(true)">ON</button></div></div>
-                <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
-                <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
-                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
+                <div class="mod-slot mod-active">CHAOS<div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button></div></div>
+                <div class="mod-slot mod-active">LIGHT<div class="mod-btns"><button id="b0" class="active" onclick="setBrightness(false)">OFF</button><button id="b1" onclick="setBrightness(true)">ON</button></div></div>
+                <div class="mod-slot mod-active">TRAPS<div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">ON</button></div></div>
             </div>
             <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
@@ -81,34 +48,16 @@
     <canvas id="game"></canvas>
 
 <script>
-let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, isRunning=false, lastTime=0, grid=[], items=[], traps=[], keys={};
-let gameMode = 'standard', humans = [], revealPath = [], revealTimer = 0, hideSpots = [];
-let baseHumanSpeed = 320; 
-let difficultyMult = 1.2;
-
-const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
-const tileSize=40;
+let chaos=0, fullBright=false, trapLevel=0, isRunning=false, lastTime=0, grid=[], items=[], traps=[], keys={}, humans=[], monsters=[], revealPath=[], revealTimer=0;
 let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, isHiding:false, moveStart:0, visionBonus:0, slowTimer:0, isSniffing:false, sniffStart:0, nextAbility:0, speedBoostEnd:0 };
-let mazeCenter = { x:0, y:0 };
+let mazeCenter={x:0,y:0}, gameMode='standard', difficultyMult=1.2, baseHumanSpeed=320;
+const canvas=document.getElementById("game"), ctx=canvas.getContext("2d"), tileSize=40;
 
 function togglePanel() { const p=document.getElementById('modifiers-panel'); p.style.display=(p.style.display==='grid')?'none':'grid'; }
 function toggleSettings() { const s=document.getElementById('settings-menu'); s.style.display=(s.style.display==='block')?'none':'block'; }
-function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
+function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
 function setBrightness(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
-function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
-function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
-
-function handleInteract() {
-    if(!isRunning || player.isMoving) return;
-    if(gameMode === 'uminotaur') {
-        if(!player.isSniffing && performance.now() > player.nextAbility) {
-            player.isSniffing = true; player.sniffStart = performance.now();
-        }
-        return;
-    }
-    if(Math.abs(player.gridX-mazeCenter.x)<=1 && Math.abs(player.gridY-mazeCenter.y)<=1) { alert("VUNNET!"); location.reload(); return; }
-    items.forEach(it => { if(it.x===player.gridX && it.y===player.gridY && !it.active) { if(it.type==='orange') it.active=true; else {player.visionBonus++; it.x=-100;} } });
-}
+function setTraps(n) { trapLevel=n; document.getElementById('t0').className=!n?'active':''; document.getElementById('t1').className=n?'active':''; }
 
 function getPath(sx, sy, tx, ty) {
     let q = [[{x:sx, y:sy}]], vis = new Set([sx + ',' + sy]);
@@ -126,110 +75,60 @@ function start() {
     gameMode = document.getElementById("gmode").value;
     let d = document.getElementById("diff").value;
     difficultyMult = d==='easy'?0.8 : (d==='hard'?1.2 : 1.5);
-    let s=parseInt(document.getElementById("size").value);
-    let dim = s*2+1; grid = Array.from({length:dim},()=>Array(dim).fill(1));
-    mazeCenter = {x:Math.floor(dim/2), y:Math.floor(dim/2)};
-    
-    // Maze gen
-    let walls = []; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
+    let s=parseInt(document.getElementById("size").value), dim=s*2+1;
+    grid=Array.from({length:dim},()=>Array(dim).fill(1)); mazeCenter={x:Math.floor(dim/2), y:Math.floor(dim/2)};
+    let walls=[]; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
     grid[1][1]=0; addW(1,1);
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
 
-    player.visionBonus=0; player.slowTimer=0; items=[]; traps=[]; humans=[]; revealPath=[]; player.isSniffing=false;
-    if(gameMode==='standard') { player.gridX=1; player.gridY=dim-2; } 
-    else { 
-        player.gridX=mazeCenter.x; player.gridY=mazeCenter.y; player.nextAbility=performance.now()+2000;
+    player.visionBonus=0; items=[]; traps=[]; humans=[]; monsters=[]; revealTimer=0;
+    if(gameMode==='standard'){ player.gridX=1; player.gridY=dim-2; } else {
+        player.gridX=mazeCenter.x; player.gridY=mazeCenter.y;
         for(let i=0; i<4; i++) {
-            let hx, hy; do { hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim); } while(grid[hy][hx]===1 || Math.hypot(hx-mazeCenter.x, hy-mazeCenter.y)<5);
-            humans.push({ gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0, slowTimer:0 });
+            let hx, hy; do{hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim);}while(grid[hy][hx]===1||Math.hypot(hx-mazeCenter.x,hy-mazeCenter.y)<5);
+            humans.push({gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0});
         }
     }
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
-    
-    monsters = []; let mCount=1+(chaos===4?4:chaos);
-    if(gameMode==='standard' || chaos>0) {
-        for(let i=0; i<mCount; i++) monsters.push({ gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, isHunting:false, path:[], nextAbility: performance.now()+3000, hasBoost:false });
+    let mc=1+(chaos===4?4:chaos); if(gameMode==='standard'||chaos>0) {
+        for(let i=0; i<mc; i++) monsters.push({gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, path:[], nextAbility:performance.now()+3000, hasBoost:false});
     }
-
-    if(trapLevel > 0) {
-        for(let i=0; i<20*s; i++) {
-            let x,y; do { x=Math.floor(Math.random()*dim); y=Math.floor(Math.random()*dim); } while(grid[y][x]===1);
-            traps.push({x,y,type:Math.random()<0.5?'sound':(Math.random()<0.9?'glue':'spikes'),active:true,anim:0});
-        }
-    }
-
     document.getElementById("menu").style.display="none"; isRunning=true; lastTime=performance.now(); requestAnimationFrame(loop);
 }
 
 function update(now) {
     if(!isRunning) return; let dt=(now-lastTime)/1000; lastTime=now;
-    
-    // AI MONSTERS
     monsters.forEach(m => {
-        if(!m.isSniffing && !m.isHunting && now > m.nextAbility) { m.isSniffing=true; m.timer=now; m.isMoving=false; }
-        if(m.isSniffing) {
-            if(now-m.timer > 2500) {
-                m.isSniffing=false; m.hasBoost=true; // Får boost til målet er nådd
-                if(gameMode==='standard') { if(!player.isHiding) m.path=getPath(m.gridX, m.gridY, player.gridX, player.gridY); }
-                else { let a=humans.filter(h=>!h.isDead); if(a.length>0) { let t=a[Math.floor(Math.random()*a.length)]; m.path=getPath(m.gridX, m.gridY, t.gridX, t.gridY); } }
-                m.nextAbility=now+15000;
-            } return;
+        if(!m.isSniffing && m.path.length===0 && now > m.nextAbility) { m.isSniffing=true; m.sniffStart=now; m.isMoving=false; }
+        if(m.isSniffing && now-m.sniffStart > 2500) {
+            m.isSniffing=false; m.hasBoost=true; m.nextAbility=now+15000;
+            if(gameMode==='standard') m.path=getPath(m.gridX, m.gridY, player.gridX, player.gridY);
+            else { let a=humans.filter(h=>!h.isDead); if(a.length>0) m.path=getPath(m.gridX, m.gridY, a[0].gridX, a[0].gridY); }
         }
-        if(!m.isMoving) {
-            let nx, ny;
-            if(m.path.length>0) { let step=m.path.shift(); nx=step.x; ny=step.y; if(m.path.length===0) m.hasBoost=false; }
-            else { let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); let f=dirs[Math.floor(Math.random()*dirs.length)]; if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} }
+        if(!m.isMoving && !m.isSniffing) {
+            let nx, ny; if(m.path.length>0){ let s=m.path.shift(); nx=s.x; ny=s.y; if(m.path.length===0) m.hasBoost=false; }
+            else { let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); let f=ds[Math.floor(Math.random()*ds.length)]; if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} }
             if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
-        } else {
-            let speed = (baseHumanSpeed / difficultyMult); // Base minotaur speed
-            if(m.hasBoost) speed /= 2.5; // Lukte-boost
-            let t=Math.min((now-m.moveStart)/speed, 1);
-            m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
-            if(t===1){ m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false; }
+        } else if(m.isMoving) {
+            let speed = (baseHumanSpeed / difficultyMult); if(m.hasBoost) speed /= 2.5;
+            let t=Math.min((now-m.moveStart)/speed, 1); m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
+            if(t===1){m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false;}
         }
     });
 
-    // U MINOTAUR PLAYER ABILITY
     if(gameMode==='uminotaur') {
-        if(player.isSniffing && now-player.sniffStart > 2500) {
-            player.isSniffing=false; player.nextAbility=now+25000; player.speedBoostEnd=now+7500;
-            let a=humans.filter(h=>!h.isDead);
-            if(a.length>0) { revealPath=getPath(player.gridX, player.gridY, a[Math.floor(Math.random()*a.length)].gridX, a[Math.floor(Math.random()*a.length)].gridY); revealTimer=now+7500; }
-        }
-        humans.forEach(h => {
-            if(h.isDead) return;
-            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25) h.isDead=true;
-            if(!h.isMoving) {
-                let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
-                let f=dirs[Math.floor(Math.random()*dirs.length)];
-                if(f){ h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
-            } else {
-                let t=Math.min((now-h.moveStart)/baseHumanSpeed, 1);
-                h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
-                if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; 
-                    traps.forEach(tr=>{ if(tr.active && tr.x===h.gridX && tr.y===h.gridY && tr.type==='sound'){ tr.anim=1; tr.active=false; revealPath=getPath(player.gridX, player.gridY, h.gridX, h.gridY); revealTimer=now+7500; } });
-                }
-            }
-        });
+        if(player.isSniffing && now-player.sniffStart>2500) { player.isSniffing=false; player.nextAbility=now+25000; player.speedBoostEnd=now+7500; let a=humans.filter(h=>!h.isDead); if(a.length>0){ revealPath=getPath(player.gridX,player.gridY,a[0].gridX,a[0].gridY); revealTimer=now+7500; } }
+        humans.forEach(h=>{ if(!h.isDead && Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25) h.isDead=true; });
     }
 
-    // PLAYER MOVEMENT
     if(!player.isMoving && !player.isSniffing) {
         let dx=0, dy=0; if(keys['w']) dy=-1; else if(keys['s']) dy=1; else if(keys['a']) dx=-1; else if(keys['d']) dx=1;
-        if(dx||dy) {
-            let nx=player.gridX+dx, ny=player.gridY+dy;
-            if(grid[ny] && grid[ny][nx]===0) { player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny; }
-        }
+        if(dx||dy){ let nx=player.gridX+dx, ny=player.gridY+dy; if(grid[ny]&&grid[ny][nx]===0){player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny;} }
     } else if(player.isMoving) {
-        let speed = baseHumanSpeed;
-        if(gameMode==='uminotaur') {
-            speed = baseHumanSpeed / difficultyMult;
-            if(now < player.speedBoostEnd) speed /= 2.5;
-        }
-        let t=Math.min((now-player.moveStart)/speed, 1);
-        player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
-        if(t===1){ player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false; }
+        let speed = (gameMode==='uminotaur' ? baseHumanSpeed/difficultyMult : baseHumanSpeed); if(gameMode==='uminotaur' && now < player.speedBoostEnd) speed /= 2.5;
+        let t=Math.min((now-player.moveStart)/speed, 1); player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
+        if(t===1){player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false;}
     }
 }
 
@@ -240,27 +139,26 @@ function loop(now) {
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     
-    if(revealTimer>now) {
-        ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath();
-        ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20);
-        revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke();
-    }
-
+    if(revealTimer>now) { ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20); revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke(); }
     humans.forEach(h=>{ ctx.fillStyle=h.isDead?"#400":"#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill(); });
-    monsters.forEach(m=>{ ctx.fillStyle="#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); 
-        if(m.isSniffing) { ctx.strokeStyle="#fff"; ctx.strokeRect(m.renderX+ox, m.renderY+oy, 40, 40); }
-    });
-    
+    monsters.forEach(m=>{ ctx.fillStyle="#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
     ctx.fillStyle=gameMode==='standard'?"#fff":"#f00"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, gameMode==='standard'?11:16, 0, Math.PI*2); ctx.fill();
-    if(player.isSniffing) { // Spinning arrows under stun
-        ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(now*0.01);
-        ctx.strokeStyle="#fff"; ctx.lineWidth=3; for(let i=0; i<4; i++){ ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10,-30); ctx.lineTo(0,-20); ctx.lineTo(10,-30); ctx.stroke(); } ctx.restore();
+
+    if(player.isSniffing) {
+        ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(now*0.01); ctx.strokeStyle="#fff"; ctx.lineWidth=3;
+        for(let i=0; i<4; i++){ ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10,-30); ctx.lineTo(0,-20); ctx.lineTo(10,-30); ctx.stroke(); } ctx.restore();
     }
 
+    if(!fullBright) {
+        let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
+        tc.fillStyle="black"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
+        let vRad = (gameMode==='uminotaur'?350:180); let g=tc.createRadialGradient(t.width/2,t.height/2,0,t.width/2,t.height/2,vRad);
+        g.addColorStop(0,"white"); g.addColorStop(1,"transparent"); tc.fillStyle=g; tc.beginPath(); tc.arc(t.width/2,t.height/2,vRad,0,Math.PI*2); tc.fill();
+        ctx.drawImage(t,0,0);
+    }
     requestAnimationFrame(loop);
 }
-
-window.onkeydown=e=>{ keys[e.key.toLowerCase()]=true; if(e.key==='e') handleInteract(); };
+window.onkeydown=e=>{ keys[e.key.toLowerCase()]=true; if(e.key==='e') { if(gameMode==='uminotaur' && !player.isSniffing && performance.now()>player.nextAbility){player.isSniffing=true; player.sniffStart=performance.now();} } };
 window.onkeyup=e=>keys[e.key.toLowerCase()]=false;
 function init(){}
 </script>
