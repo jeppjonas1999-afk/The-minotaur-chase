@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.5.5 Human AI Fix</title>
+    <title>Minotaur: The Vault - v.5.6 Smart AI Update</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -27,7 +27,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.5 AI FIXED</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.6 SMART PREY</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -48,7 +48,7 @@
     <canvas id="game"></canvas>
 
 <script>
-let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, lastTime=0, grid=[], humans=[], monsters=[], revealPath=[], revealTimer=0;
+let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, lastTime=0, grid=[], items=[], humans=[], monsters=[], revealPath=[], revealTimer=0;
 let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, isSniffing:false, sniffStart:0, nextAbility:0, speedBoostEnd:0 };
 let mazeCenter={x:0,y:0}, difficultyMult=1.2, baseHumanSpeed=320;
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d"), tileSize=40;
@@ -56,6 +56,7 @@ const canvas=document.getElementById("game"), ctx=canvas.getContext("2d"), tileS
 function togglePanel() { const p=document.getElementById('modifiers-panel'); p.style.display=(p.style.display==='grid')?'none':'grid'; }
 function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
 function setBrightness(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
+function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
 function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
 function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
 
@@ -80,15 +81,25 @@ function start() {
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
 
+    // Generer gjenstander (Søppelkasser)
+    items=[];
+    let itemCount = itemMadness ? 40 : 15;
+    for(let i=0; i<itemCount; i++) {
+        let x,y; do { x=Math.floor(Math.random()*dim); y=Math.floor(Math.random()*dim); } while(grid[y][x]===1 || (x===mazeCenter.x && y===mazeCenter.y));
+        items.push({gridX:x, gridY:y, type:'trash'});
+    }
+
     humans=[]; monsters=[]; revealTimer=0;
     if(!uMinoMode){ player.gridX=1; player.gridY=dim-2; } else {
         player.gridX=mazeCenter.x; player.gridY=mazeCenter.y;
-        for(let i=0; i<6; i++) {
+        // KUN 4 Mennesker
+        for(let i=0; i<4; i++) {
             let hx, hy; do{hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim);}while(grid[hy][hx]===1||Math.hypot(hx-mazeCenter.x,hy-mazeCenter.y)<5);
-            humans.push({gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0});
+            humans.push({gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0, hasEscaped:false, isHidden:false, path:[], visited:new Set([hx+','+hy]), hideTarget:null});
         }
     }
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
+    
     if(!uMinoMode||chaos>0) {
         for(let i=0; i<(1+chaos); i++) monsters.push({gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, path:[], nextAbility:performance.now()+3000, hasBoost:false});
     }
@@ -98,13 +109,13 @@ function start() {
 function update(now) {
     if(!isRunning) return;
     
-    // MONSTERS (AI)
+    // AI MONSTERS (Standard mode)
     monsters.forEach(m => {
         if(!m.isSniffing && m.path.length===0 && now > m.nextAbility) { m.isSniffing=true; m.sniffStart=now; m.isMoving=false; }
         if(m.isSniffing && now-m.sniffStart > 2500) {
             m.isSniffing=false; m.hasBoost=true; m.nextAbility=now+15000;
             if(!uMinoMode) m.path=getPath(m.gridX, m.gridY, player.gridX, player.gridY);
-            else { let a=humans.filter(h=>!h.isDead); if(a.length>0) m.path=getPath(m.gridX, m.gridY, a[0].gridX, a[0].gridY); }
+            else { let a=humans.filter(h=>!h.isDead && !h.isHidden && !h.hasEscaped); if(a.length>0) m.path=getPath(m.gridX, m.gridY, a[0].gridX, a[0].gridY); }
         }
         if(!m.isMoving && !m.isSniffing) {
             let nx, ny; if(m.path.length>0){ let s=m.path.shift(); nx=s.x; ny=s.y; if(m.path.length===0) m.hasBoost=false; }
@@ -117,24 +128,109 @@ function update(now) {
         }
     });
 
-    // U-MINO LOGIKK (PLAYER & HUMANS)
+    // U-MINO LOGIKK & SMART HUMANS
     if(uMinoMode) {
         if(player.isSniffing && now-player.sniffStart>2500) { 
             player.isSniffing=false; player.nextAbility=now+25000; player.speedBoostEnd=now+7500; 
-            let a=humans.filter(h=>!h.isDead); 
+            let a=humans.filter(h=>!h.isDead && !h.isHidden && !h.hasEscaped); 
             if(a.length>0){ revealPath=getPath(player.gridX,player.gridY,a[0].gridX,a[0].gridY); revealTimer=now+7500; } 
         }
+
         humans.forEach(h => {
-            if(h.isDead) return;
-            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25) h.isDead=true;
+            if(h.isDead || h.hasEscaped) return;
+
+            // KAMP I SØPPELKASSEN
+            if(h.isHidden) {
+                if(player.gridX === h.gridX && player.gridY === h.gridY) {
+                    let diffVal = document.getElementById("diff").value;
+                    let survivalChance = diffVal === 'easy' ? 0.75 : (diffVal === 'hard' ? 0.50 : 0.25);
+                    
+                    if(Math.random() < survivalChance) {
+                        // Mennesket vinner og sparker deg unna!
+                        let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[player.gridY+d[1]]&&grid[player.gridY+d[1]][player.gridX+d[0]]===0);
+                        if(dirs.length>0){ player.gridX+=dirs[0][0]; player.gridY+=dirs[0][1]; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize; player.isMoving=false; }
+                        h.isHidden = false; // De hopper ut
+                    } else {
+                        // Minotauren vinner
+                        h.isDead = true; h.isHidden = false;
+                    }
+                }
+                return; // Ikke beveg deg mens du er gjemt
+            }
+
+            // Standard kollisjonsdød ute i det fri
+            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25) { h.isDead=true; return; }
+            
+            // Har de nådd midten? (Rømt)
+            if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { h.hasEscaped = true; return; }
+
+            let distToPlayer = Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY);
+            let seesPlayer = distToPlayer < 250 || player.isSniffing; // Sniffing røper deg alltid
+            let currentSpeed = seesPlayer ? (baseHumanSpeed / 1.1) : baseHumanSpeed; // 1.1x fart i panikk
+
             if(!h.isMoving) {
-                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
-                let f=ds[Math.floor(Math.random()*ds.length)];
-                if(f){ h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
+                if(seesPlayer) {
+                    // PANIKK - finn nærmeste søppelkasse
+                    if(!h.hideTarget) {
+                        let closestCan = null, minDist = Infinity;
+                        items.forEach(it => {
+                            if(it.type === 'trash') {
+                                let d = Math.hypot(it.gridX-h.gridX, it.gridY-h.gridY);
+                                if(d < minDist) { minDist = d; closestCan = it; }
+                            }
+                        });
+                        if(closestCan && minDist < 15) { // Bare gjem seg hvis den ikke er alt for langt unna
+                            h.path = getPath(h.gridX, h.gridY, closestCan.gridX, closestCan.gridY);
+                            h.hideTarget = closestCan;
+                        }
+                    }
+
+                    if(h.path && h.path.length > 0) {
+                        let step = h.path.shift();
+                        h.targetX = step.x; h.targetY = step.y;
+                        h.isMoving = true; h.moveStart = now;
+                    } else {
+                        // Finner ingen boks? Løp vekk fra spilleren
+                        let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
+                        ds.sort((a,b) => {
+                            let da = Math.hypot((h.gridX+a[0])*tileSize-player.renderX, (h.gridY+a[1])*tileSize-player.renderY);
+                            let db = Math.hypot((h.gridX+b[0])*tileSize-player.renderX, (h.gridY+b[1])*tileSize-player.renderY);
+                            return db - da; 
+                        });
+                        if(ds.length>0) { h.targetX = h.gridX+ds[0][0]; h.targetY = h.gridY+ds[0][1]; h.isMoving=true; h.moveStart=now; }
+                    }
+                } else {
+                    // LÆRENDE AI - Leter etter midten
+                    h.hideTarget = null;
+                    h.path = [];
+                    h.visited.add(h.gridX+','+h.gridY);
+
+                    // Husker de hvor midten er hvis de er nære?
+                    if(Math.hypot(h.gridX-mazeCenter.x, h.gridY-mazeCenter.y) < 10 && Math.random() < 0.25) {
+                        h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
+                    }
+
+                    if(h.path && h.path.length > 0) {
+                        let step = h.path.shift();
+                        h.targetX = step.x; h.targetY = step.y;
+                        h.isMoving = true; h.moveStart = now;
+                    } else {
+                        // Utforsk, prioriter felt de ikke har vært på
+                        let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
+                        let unvisited = ds.filter(d => !h.visited.has((h.gridX+d[0])+','+(h.gridY+d[1])));
+                        let f = unvisited.length > 0 ? unvisited[Math.floor(Math.random()*unvisited.length)] : ds[Math.floor(Math.random()*ds.length)];
+                        if(f){ h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
+                    }
+                }
             } else {
-                let t=Math.min((now-h.moveStart)/baseHumanSpeed, 1);
+                let t=Math.min((now-h.moveStart)/currentSpeed, 1);
                 h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
-                if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; }
+                if(t===1){
+                    h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false;
+                    if(h.hideTarget && h.gridX === h.hideTarget.gridX && h.gridY === h.hideTarget.gridY) {
+                        h.isHidden = true; h.hideTarget = null;
+                    }
+                }
             }
         });
     }
@@ -154,16 +250,37 @@ function loop(now) {
     if(!isRunning) return; update(now);
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
     const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
+    
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
+    
+    // Tegn Søppelkasser
+    items.forEach(it => {
+        ctx.fillStyle = "#333"; ctx.fillRect(it.gridX*tileSize+ox+8, it.gridY*tileSize+oy+8, 24, 24);
+        ctx.fillStyle = "#111"; ctx.fillRect(it.gridX*tileSize+ox+10, it.gridY*tileSize+oy+10, 20, 4); // Lokk
+    });
+
+    // Tegn Rømningstau i midten
+    ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+5, 8, 30);
+    for(let i=5; i<35; i+=5){ ctx.fillStyle="#000"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+i, 8, 1); } // Taudetaljer
+
     if(revealTimer>now) { ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20); revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke(); }
-    humans.forEach(h=>{ if(!h.isDead){ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill();} });
+    
+    // Tegn mennesker (bare de som IKKE er døde, rømt, eller gjemt i søppelet)
+    humans.forEach(h=>{ 
+        if(!h.isDead && !h.isHidden && !h.hasEscaped){
+            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill();
+        } 
+    });
+    
     monsters.forEach(m=>{ ctx.fillStyle="#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
     ctx.fillStyle=!uMinoMode?"#fff":"#f00"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, !uMinoMode?11:16, 0, Math.PI*2); ctx.fill();
+
     if(player.isSniffing) {
         ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(now*0.01); ctx.strokeStyle="#fff"; ctx.lineWidth=3;
         for(let i=0; i<4; i++){ ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10,-30); ctx.lineTo(0,-20); ctx.lineTo(10,-30); ctx.stroke(); } ctx.restore();
     }
+
     if(!fullBright) {
         let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
         tc.fillStyle="black"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
