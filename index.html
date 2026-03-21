@@ -8,27 +8,39 @@
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         
+        /* MENY-LAYOUT (TILBAKESTILT) */
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
-        .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; z-index: 2; }
+        .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; position: relative; z-index: 2; }
         
         #modifiers-panel { display: none; width: 420px; background: #111; border: 2px solid #333; border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; box-sizing: border-box; }
         #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; border-radius: 0 10px 10px 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         
-        .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 12px; color: #666; text-transform: uppercase; }
+        .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
         select, .start-btn { width: 100%; padding: 15px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-size: 16px; font-family: inherit; }
-        .start-btn { margin-top: 25px; background: #200; border-color: #500; font-weight: bold; }
+        .start-btn { margin-top: 25px; background: #200; border-color: #500; font-weight: bold; transition: 0.2s; }
+        .start-btn:hover { background: #500; border-color: #f00; }
 
-        /* MINIGAME UI */
+        /* MOD-KORT STIL */
+        .mod-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8 / 1; position: relative; border: 1px solid #444; }
+        .mod-title { position: absolute; bottom: 2px; width: 100%; text-align: center; color: #000; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .mod-desc { font-size: 10px; color: #aaa; margin: 6px 0; min-height: 24px; }
+        .mod-btns { display: flex; gap: 4px; width: 100%; }
+        .mod-btns button { padding: 4px; font-size: 12px; flex: 1; background: #1a1a1a; border: 1px solid #444; color: #fff; cursor: pointer; }
+        .mod-btns button.active { background: #800; border-color: #f00; font-weight: bold; }
+        .mod-card.blank { opacity: 0.15; }
+
+        h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; margin: 0 0 10px 0; }
+        
+        /* MINIGAME STIL */
         #mg-container { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 300px; display: none; z-index: 1001; text-align: center; }
         #mg-bar-bg { width: 100%; height: 20px; background: #111; border: 2px solid #fff; position: relative; overflow: hidden; }
         #mg-bar-fill { height: 100%; width: 50%; background: #0f0; }
-        #mg-text { margin-top: 10px; font-weight: bold; letter-spacing: 2px; text-shadow: 0 0 5px #000; }
+        #mg-text { margin-top: 10px; font-weight: bold; letter-spacing: 2px; }
 
         @keyframes mg-shake {
             0% { transform: translate(2px, 2px); }
-            25% { transform: translate(-2px, -2px); }
             50% { transform: translate(-2px, 2px); }
-            75% { transform: translate(2px, -2px); }
             100% { transform: translate(0, 0); }
         }
     </style>
@@ -44,29 +56,37 @@
         <div id="menu-wrapper">
             <div class="box">
                 <h1>MINOTAUR</h1>
-                <p id="menu-tip">Søk dekning i søppelkassene!</p>
+                <p id="menu-tip" style="color:#555; font-size:11px; text-transform:uppercase;">Gjem deg i mørket...</p>
+                
                 <span class="menu-label">Kartstørrelse</span>
                 <select id="size">
                     <option value="15">LITEN</option>
                     <option value="25" selected>STOR</option>
                     <option value="45">DIGERT</option>
                 </select>
+
                 <span class="menu-label">Vanskelighetsgrad</span>
                 <select id="diff">
                     <option value="easy">ENKEL</option>
                     <option value="medium" selected>MEDIUM</option>
                     <option value="hard">VANSKELIG</option>
                 </select>
+
                 <button class="start-btn" onclick="start()">START FLUKTEN</button>
             </div>
+            
             <div id="modifiers-panel">
-                <div class="box" style="width:auto; padding:10px;">
-                    <div style="color:#800; font-size:10px;">CHAOS</div>
-                    <button onclick="toggleChaos(1)" id="btn-chaos-1">1</button>
-                    <button onclick="toggleChaos(2)" id="btn-chaos-2">2</button>
-                    <button onclick="toggleChaos(3)" id="btn-chaos-3">3</button>
-                    <button onclick="toggleChaos(4)" id="btn-chaos-4">4</button>
+                <div class="mod-card">
+                    <div class="mod-img"><div class="mod-title">minotaur chaos</div></div>
+                    <p class="mod-desc">Flere monstre.<br>De sprer seg ut.</p>
+                    <div class="mod-btns">
+                        <button id="btn-chaos-1" onclick="toggleChaos(1)">1</button>
+                        <button id="btn-chaos-2" onclick="toggleChaos(2)">2</button>
+                        <button id="btn-chaos-3" onclick="toggleChaos(3)">3</button>
+                        <button id="btn-chaos-4" onclick="toggleChaos(4)">4</button>
+                    </div>
                 </div>
+                <script>for(let i=0; i<8; i++) document.write('<div class="mod-card blank"><div class="mod-img"><div class="mod-title">???</div></div><p class="mod-desc">Låst</p></div>');</script>
             </div>
             <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
@@ -81,12 +101,23 @@ const ctx = canvas.getContext("2d");
 const tileSize = 40;
 const moveTime = 320;
 
-let grid = [], items = [], hideSpots = [], monsters = [], isRunning = false, lastTime = 0;
+let grid = [], hideSpots = [], monsters = [], isRunning = false, lastTime = 0;
 let player = { gridX: 1, gridY: 1, renderX: 0, renderY: 0, targetX: 1, targetY: 1, isMoving: false, moveStart: 0, visionRadius: 180, isHiding: false };
 let minigame = { active: false, progress: 50, targetKey: 'w' };
 
-function togglePanel() { const p = document.getElementById('modifiers-panel'); p.style.display = p.style.display === 'grid' ? 'none' : 'grid'; }
-function toggleChaos(lvl) { chaosLevel = (chaosLevel === lvl) ? 0 : lvl; }
+function togglePanel() {
+    const p = document.getElementById('modifiers-panel');
+    const b = document.getElementById('expand-btn');
+    const open = p.style.display === 'grid';
+    p.style.display = open ? 'none' : 'grid';
+    b.innerText = open ? '+' : '-';
+}
+
+function toggleChaos(lvl) {
+    chaosLevel = (chaosLevel === lvl) ? 0 : lvl;
+    for(let i=1; i<=4; i++) document.getElementById('btn-chaos-'+i).className = (i === chaosLevel) ? 'active' : '';
+}
+
 function initMenu() {}
 
 function generateMaze(size) {
@@ -127,10 +158,10 @@ function start() {
     
     monsters = [];
     for(let i=0; i < (1 + chaosLevel); i++) {
+        let mx = Math.floor(grid.length/2), my = Math.floor(grid.length/2);
         monsters.push({
-            gridX: Math.floor(grid.length/2), gridY: Math.floor(grid.length/2),
-            renderX: 0, renderY: 0, targetX: 0, targetY: 0, isMoving: false, moveStart: 0, waitEnd: 0, 
-            isAggro: false, lastSeenX: -1, lastSeenY: -1
+            gridX: mx, gridY: my, renderX: mx*tileSize, renderY: my*tileSize, targetX: mx, targetY: my,
+            isMoving: false, moveStart: 0, waitEnd: 0, isAggro: false, lastSeenX: -1, lastSeenY: -1
         });
     }
 
@@ -146,8 +177,13 @@ function update(now) {
     if (minigame.active) {
         minigame.progress -= (15 + chaosLevel * 5) * dt;
         const bar = document.getElementById("mg-bar-fill");
+        const cont = document.getElementById("mg-container");
         bar.style.width = minigame.progress + "%";
         bar.style.background = `rgb(${255 * (1 - minigame.progress/100)}, ${255 * (minigame.progress/100)}, 0)`;
+        
+        if(minigame.progress < 30) cont.style.animation = "mg-shake 0.1s infinite";
+        else cont.style.animation = "none";
+
         if (minigame.progress <= 0) location.reload();
         if (minigame.progress >= 100) { 
             minigame.active = false; player.isHiding = false; 
@@ -157,18 +193,22 @@ function update(now) {
     }
 
     monsters.forEach((m, idx) => {
-        // Enkel AI som sprer seg
         if(!m.isMoving && now > m.waitEnd) {
             let tx = m.lastSeenX === -1 ? Math.floor(Math.random()*grid.length) : m.lastSeenX;
             let ty = m.lastSeenY === -1 ? Math.floor(Math.random()*grid.length) : m.lastSeenY;
             
-            let dx = Math.sign(tx - m.gridX), dy = Math.sign(ty - m.gridY);
-            let nx = m.gridX + (Math.random() > 0.5 ? dx : 0);
-            let ny = m.gridY + (nx === m.gridX ? dy : 0);
+            // Unngå klumping
+            monsters.forEach((other, oi) => {
+                if(idx !== oi && Math.abs(tx - other.gridX) < 5) tx = (tx + 10) % grid.length;
+            });
 
-            if(grid[ny] && grid[ny][nx] === 0) {
-                m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny;
-            } else m.waitEnd = now + 200;
+            let dx = Math.sign(tx - m.gridX), dy = Math.sign(ty - m.gridY);
+            let nx = m.gridX, ny = m.gridY;
+            if(Math.random() > 0.5 && dx !== 0 && grid[m.gridY][m.gridX+dx] === 0) nx += dx;
+            else if(dy !== 0 && grid[m.gridY+dy][m.gridX] === 0) ny += dy;
+
+            if(nx !== m.gridX || ny !== m.gridY) { m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny; }
+            else m.waitEnd = now + 400;
         }
         if(m.isMoving) {
             let t = Math.min((now - m.moveStart)/moveTime, 1);
@@ -190,6 +230,8 @@ function update(now) {
         player.renderY = (player.gridY + (player.targetY - player.gridY)*t)*tileSize;
         if(t===1) { player.gridX = player.targetX; player.gridY = player.targetY; player.isMoving = false; }
     }
+
+    if(!player.isHiding && monsters.some(m => Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY) < 30)) location.reload();
 }
 
 function loop(now) {
@@ -207,35 +249,25 @@ function loop(now) {
     });
 
     monsters.forEach(m => {
-        ctx.fillStyle = m.isAggro ? "#f55" : "#700";
-        ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#700"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 15, 0, Math.PI*2); ctx.fill();
     });
 
     if(!player.isHiding) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill(); }
 
-    // FOG OF WAR LOGIKK
+    // FOG OF WAR
     let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
-    let tc = t.getContext('2d');
+    let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
     
-    // Fyll hele skjermen med sort tåke
-    tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
     tc.globalCompositeOperation = "destination-out";
-
-    // 1. Spillerens normale lys (100% fjerning av tåke)
     let vRad = player.isHiding ? 400 : player.visionRadius;
     let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
     g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
     tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
 
-    // 2. Søppelkasser (50% fjerning av tåke i 1 tile radius)
-    tc.globalCompositeOperation = "source-over"; // Gå tilbake til å tegne oppå
+    // 50% Fog over søppelkasser
     hideSpots.forEach(s => {
-        let sx = s.x*tileSize+ox; let sy = s.y*tileSize+oy;
-        // Vi tegner en sort boks med 0.5 opacity over tåken som allerede er der, 
-        // men siden vi bruker destination-out etterpå, må vi trikse litt:
-        tc.globalCompositeOperation = "destination-out";
-        tc.fillStyle = "rgba(255, 255, 255, 0.5)"; // 50% gjennomsiktig hvit "visker ut" tåken
-        tc.fillRect(sx - 20, sy - 20, tileSize + 40, tileSize + 40);
+        tc.fillStyle = "rgba(255, 255, 255, 0.5)";
+        tc.fillRect(s.x*tileSize+ox-10, s.y*tileSize+oy-10, tileSize+20, tileSize+20);
     });
 
     ctx.drawImage(t, 0, 0);
@@ -252,8 +284,7 @@ window.onkeydown = e => {
     }
     if(k === 'e' && !player.isMoving) {
         if(hideSpots.some(s => s.x === player.gridX && s.y === player.gridY) && !player.isHiding) {
-            player.isHiding = true;
-            minigame.active = true; minigame.progress = 50;
+            player.isHiding = true; minigame.active = true; minigame.progress = 50;
             document.getElementById("mg-container").style.display = "block";
         }
     }
