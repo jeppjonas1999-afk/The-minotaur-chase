@@ -8,7 +8,6 @@
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
         
-        /* MENY-LAYOUT (TILBAKESTILT) */
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; position: relative; z-index: 2; }
         
@@ -20,7 +19,6 @@
         .start-btn { margin-top: 25px; background: #200; border-color: #500; font-weight: bold; transition: 0.2s; }
         .start-btn:hover { background: #500; border-color: #f00; }
 
-        /* MOD-KORT STIL */
         .mod-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
         .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8 / 1; position: relative; border: 1px solid #444; }
         .mod-title { position: absolute; bottom: 2px; width: 100%; text-align: center; color: #000; font-size: 11px; font-weight: bold; text-transform: uppercase; }
@@ -32,7 +30,6 @@
 
         h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; margin: 0 0 10px 0; }
         
-        /* MINIGAME STIL */
         #mg-container { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 300px; display: none; z-index: 1001; text-align: center; }
         #mg-bar-bg { width: 100%; height: 20px; background: #111; border: 2px solid #fff; position: relative; overflow: hidden; }
         #mg-bar-fill { height: 100%; width: 50%; background: #0f0; }
@@ -56,7 +53,7 @@
         <div id="menu-wrapper">
             <div class="box">
                 <h1>MINOTAUR</h1>
-                <p id="menu-tip" style="color:#555; font-size:11px; text-transform:uppercase;">Gjem deg i mørket...</p>
+                <p id="menu-tip" style="color:#555; font-size:11px; text-transform:uppercase;">Intelligente monstre patruljerer nå...</p>
                 
                 <span class="menu-label">Kartstørrelse</span>
                 <select id="size">
@@ -78,7 +75,7 @@
             <div id="modifiers-panel">
                 <div class="mod-card">
                     <div class="mod-img"><div class="mod-title">minotaur chaos</div></div>
-                    <p class="mod-desc">Flere monstre.<br>De sprer seg ut.</p>
+                    <p class="mod-desc">Smartere AI.<br>De sprer seg ut.</p>
                     <div class="mod-btns">
                         <button id="btn-chaos-1" onclick="toggleChaos(1)">1</button>
                         <button id="btn-chaos-2" onclick="toggleChaos(2)">2</button>
@@ -142,7 +139,7 @@ function spawnExtras(s) {
         let attempts = 0;
         do {
             x = Math.floor(Math.random()*grid.length); y = Math.floor(Math.random()*grid.length);
-            tooClose = hideSpots.some(h => Math.abs(h.x - x) < 10 && Math.abs(h.y - y) < 10);
+            tooClose = hideSpots.some(h => Math.abs(h.x - x) < 8 && Math.abs(h.y - y) < 8);
             attempts++;
         } while((grid[y][x] === 1 || tooClose) && attempts < 100);
         if(attempts < 100) hideSpots.push({x, y});
@@ -158,10 +155,15 @@ function start() {
     
     monsters = [];
     for(let i=0; i < (1 + chaosLevel); i++) {
-        let mx = Math.floor(grid.length/2), my = Math.floor(grid.length/2);
+        // Start monstrene spredt utover kartet i stedet for i midten
+        let rx = 1 + Math.floor(Math.random()*(grid.length-2));
+        let ry = 1 + Math.floor(Math.random()*(grid.length-2));
+        while(grid[ry][rx] === 1) { rx++; if(rx>=grid.length-1){rx=1; ry++;} }
+        
         monsters.push({
-            gridX: mx, gridY: my, renderX: mx*tileSize, renderY: my*tileSize, targetX: mx, targetY: my,
-            isMoving: false, moveStart: 0, waitEnd: 0, isAggro: false, lastSeenX: -1, lastSeenY: -1
+            gridX: rx, gridY: ry, renderX: rx*tileSize, renderY: ry*tileSize, targetX: rx, targetY: ry,
+            isMoving: false, moveStart: 0, waitEnd: 0, isAggro: false, lastSeenX: -1, lastSeenY: -1,
+            patrolTarget: null
         });
     }
 
@@ -170,46 +172,82 @@ function start() {
     requestAnimationFrame(loop);
 }
 
+function getNewPatrolPoint(mIdx) {
+    const m = monsters[mIdx];
+    let bestX = 1, bestY = 1, maxDist = -1;
+    
+    // Prøv 10 tilfeldige punkter og velg det som er lengst unna andre monstre
+    for(let i=0; i<10; i++) {
+        let tx = 1 + Math.floor(Math.random()*(grid.length-2));
+        let ty = 1 + Math.floor(Math.random()*(grid.length-2));
+        if(grid[ty][tx] === 1) continue;
+
+        let minDistToOthers = 1000;
+        monsters.forEach((other, oIdx) => {
+            if(mIdx === oIdx) return;
+            let d = Math.hypot(tx - other.gridX, ty - other.gridY);
+            if(d < minDistToOthers) minDistToOthers = d;
+        });
+
+        if(minDistToOthers > maxDist) {
+            maxDist = minDistToOthers;
+            bestX = tx; bestY = ty;
+        }
+    }
+    return {x: bestX, y: bestY};
+}
+
 function update(now) {
     if (!isRunning) return;
     let dt = (now - lastTime) / 1000; lastTime = now;
 
     if (minigame.active) {
-        minigame.progress -= (15 + chaosLevel * 5) * dt;
+        minigame.progress -= (18 + chaosLevel * 4) * dt;
         const bar = document.getElementById("mg-bar-fill");
-        const cont = document.getElementById("mg-container");
         bar.style.width = minigame.progress + "%";
         bar.style.background = `rgb(${255 * (1 - minigame.progress/100)}, ${255 * (minigame.progress/100)}, 0)`;
-        
-        if(minigame.progress < 30) cont.style.animation = "mg-shake 0.1s infinite";
-        else cont.style.animation = "none";
-
         if (minigame.progress <= 0) location.reload();
         if (minigame.progress >= 100) { 
             minigame.active = false; player.isHiding = false; 
             document.getElementById("mg-container").style.display = "none";
-            monsters.forEach(m => { m.isAggro = false; m.lastSeenX = -1; m.waitEnd = now + 2000; });
+            monsters.forEach(m => { m.isAggro = false; m.lastSeenX = -1; m.waitEnd = now + 3000; m.patrolTarget = null; });
         }
     }
 
     monsters.forEach((m, idx) => {
-        if(!m.isMoving && now > m.waitEnd) {
-            let tx = m.lastSeenX === -1 ? Math.floor(Math.random()*grid.length) : m.lastSeenX;
-            let ty = m.lastSeenY === -1 ? Math.floor(Math.random()*grid.length) : m.lastSeenY;
-            
-            // Unngå klumping
-            monsters.forEach((other, oi) => {
-                if(idx !== oi && Math.abs(tx - other.gridX) < 5) tx = (tx + 10) % grid.length;
-            });
+        // HVIS QTE ER AKTIV, gå mot spilleren
+        if(minigame.active) {
+            m.isAggro = true; m.lastSeenX = player.gridX; m.lastSeenY = player.gridY;
+        }
 
+        if(!m.isMoving && now > m.waitEnd) {
+            if(!m.patrolTarget || (m.gridX === m.patrolTarget.x && m.gridY === m.patrolTarget.y)) {
+                m.patrolTarget = getNewPatrolPoint(idx);
+                m.waitEnd = now + 800; // Litt pause før de snur
+                return;
+            }
+
+            let tx = m.isAggro ? m.lastSeenX : m.patrolTarget.x;
+            let ty = m.isAggro ? m.lastSeenY : m.patrolTarget.y;
+
+            // Enkel banefinner mot mål
             let dx = Math.sign(tx - m.gridX), dy = Math.sign(ty - m.gridY);
             let nx = m.gridX, ny = m.gridY;
-            if(Math.random() > 0.5 && dx !== 0 && grid[m.gridY][m.gridX+dx] === 0) nx += dx;
-            else if(dy !== 0 && grid[m.gridY+dy][m.gridX] === 0) ny += dy;
 
-            if(nx !== m.gridX || ny !== m.gridY) { m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny; }
-            else m.waitEnd = now + 400;
+            // Prøv å gå mot mål, men sjekk vegger
+            if(dx !== 0 && grid[m.gridY][m.gridX+dx] === 0) nx += dx;
+            else if(dy !== 0 && grid[m.gridY+dy][m.gridX] === 0) ny += dy;
+            else {
+                // Hvis blokkert, velg ny retning tilfeldig for å ikke "stucke"
+                let dirs = [[0,1],[0,-1],[1,0],[-1,0]].sort(()=>Math.random()-0.5);
+                for(let [ddx, ddy] of dirs) {
+                    if(grid[m.gridY+ddy][m.gridX+ddx] === 0) { nx = m.gridX+ddx; ny = m.gridY+ddy; break; }
+                }
+            }
+
+            m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny;
         }
+
         if(m.isMoving) {
             let t = Math.min((now - m.moveStart)/moveTime, 1);
             m.renderX = (m.gridX + (m.targetX - m.gridX)*t)*tileSize;
@@ -218,6 +256,7 @@ function update(now) {
         }
     });
 
+    // Spillerbevegelse
     if(!player.isHiding && !player.isMoving) {
         let dx=0, dy=0; if(keys['w'])dy=-1; if(keys['s'])dy=1; if(keys['a'])dx=-1; if(keys['d'])dx=1;
         if(dx!==0||dy!==0) {
@@ -249,22 +288,20 @@ function loop(now) {
     });
 
     monsters.forEach(m => {
-        ctx.fillStyle = "#700"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = m.isAggro ? "#f00" : "#600";
+        ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 15, 0, Math.PI*2); ctx.fill();
     });
 
     if(!player.isHiding) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 10, 0, Math.PI*2); ctx.fill(); }
 
-    // FOG OF WAR
     let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
     let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
-    
     tc.globalCompositeOperation = "destination-out";
     let vRad = player.isHiding ? 400 : player.visionRadius;
     let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
     g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
     tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
 
-    // 50% Fog over søppelkasser
     hideSpots.forEach(s => {
         tc.fillStyle = "rgba(255, 255, 255, 0.5)";
         tc.fillRect(s.x*tileSize+ox-10, s.y*tileSize+oy-10, tileSize+20, tileSize+20);
@@ -284,8 +321,12 @@ window.onkeydown = e => {
     }
     if(k === 'e' && !player.isMoving) {
         if(hideSpots.some(s => s.x === player.gridX && s.y === player.gridY) && !player.isHiding) {
-            player.isHiding = true; minigame.active = true; minigame.progress = 50;
-            document.getElementById("mg-container").style.display = "block";
+            player.isHiding = true; 
+            // Minigame trigges bare hvis en minotaur er i nærheten
+            if(monsters.some(m => Math.hypot(m.gridX-player.gridX, m.gridY-player.gridY) < 8)) {
+                minigame.active = true; minigame.progress = 50;
+                document.getElementById("mg-container").style.display = "block";
+            }
         }
     }
 };
