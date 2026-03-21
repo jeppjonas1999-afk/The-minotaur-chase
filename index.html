@@ -159,12 +159,8 @@ function update(now) {
     
     monsters.forEach(m => {
         let distToPlayer = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
-        
-        // KOLLISJON: Hvis Minotaur tar deg i Escape Mode
         if(!uMinoMode && distToPlayer < 25) { triggerJumpscare(); return; }
-
         if(!uMinoMode && distToPlayer < 200) { m.isChasing = true; m.isSniffing = false; } else { m.isChasing = false; }
-
         if(!m.isMoving && !m.isSniffing) {
             let nx, ny; 
             if(m.isChasing) {
@@ -193,7 +189,6 @@ function update(now) {
             let a=humans.filter(h=>!h.isDead && !h.isHidden && !h.hasEscaped); 
             if(a.length>0){ revealPath=getPath(player.gridX,player.gridY,a[0].gridX,a[0].gridY); revealTimer=now+7500; } 
         }
-
         humans.forEach(h => {
             if(h.isDead || h.hasEscaped) return;
             if(h.isHidden) {
@@ -202,9 +197,7 @@ function update(now) {
                 }
                 return; 
             }
-            // KOLLISJON: Når spilleren er Minotaur (U-Mino)
             if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25 && !minotaurAI.active) { h.isDead=true; return; }
-            
             if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { h.hasEscaped = true; return; }
             let distToPlayer = Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY);
             let seesPlayer = distToPlayer < 250 || player.isSniffing; 
@@ -278,7 +271,8 @@ function loop(now) {
     canvas.width=window.innerWidth; canvas.height=window.innerHeight;
     const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
+    // ENDRET HER: Veggene har nå fargen #B3B3B3
+    for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#B3B3B3"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     items.forEach(it => { ctx.fillStyle = "#333"; ctx.fillRect(it.gridX*tileSize+ox+8, it.gridY*tileSize+oy+8, 24, 24); ctx.fillStyle = "#111"; ctx.fillRect(it.gridX*tileSize+ox+10, it.gridY*tileSize+oy+10, 20, 4); });
     ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+16, mazeCenter.y*tileSize+oy+5, 8, 30);
     if(revealTimer>now) { ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20); revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke(); }
