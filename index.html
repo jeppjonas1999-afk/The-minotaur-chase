@@ -2,16 +2,38 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.3.2 Stationary Lamps</title>
+    <title>Minotaur: The Vault - v.3.3 Bug Fix & UI</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
+        
+        /* MODIFIER PANEL FIX */
+        #modifiers-panel { 
+            display: none; width: 450px; background: #0f0f0f; border: 2px solid #333; 
+            border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
+        }
+        #expand-btn { 
+            position: absolute; right: -50px; top: 50%; transform: translateY(-50%); 
+            width: 50px; height: 100px; background: #222; border: 2px solid #333; 
+            border-left: none; color: #fff; font-size: 30px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; 
+        }
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; }
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
+        
+        /* MODIFIER SLOTS */
+        .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; }
+        .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; }
+        .mod-btns { display: flex; gap: 2px; width: 100%; }
+        .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
+        .mod-btns button.active { background: #800; border-color: #f00; }
+
         #hunt-warning { position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: #f00; font-size: 24px; font-weight: bold; display: none; z-index: 200; }
         #mg-container { position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 300px; display: none; z-index: 1001; text-align: center; }
         #mg-bar-bg { width: 100%; height: 25px; background: #000; border: 3px solid #fff; overflow: hidden; }
@@ -34,32 +56,64 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.3.2 STATIONARY LAMPS</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.3.3 FIX MODIFIERS</p>
                 <span class="menu-label">Map Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
                 <select id="diff"><option value="easy">EASY</option><option value="hard" selected>HARD</option><option value="insane">INSANE</option></select>
                 <button class="start-btn" onclick="start()">START GAME</button>
             </div>
+
+            <div id="modifiers-panel">
+                <div class="mod-slot mod-active">
+                    <div class="mod-img">CHAOS</div>
+                    <div class="mod-btns">
+                        <button id="c1" onclick="setChaos(1)">1</button>
+                        <button id="c2" onclick="setChaos(2)">2</button>
+                        <button id="c3" onclick="setChaos(3)">3</button>
+                        <button id="c4" onclick="setChaos(4)">4</button>
+                    </div>
+                </div>
+                <div class="mod-slot mod-active">
+                    <div class="mod-img" style="background: #ffd700;">LIGHT</div>
+                    <div class="mod-btns">
+                        <button id="b0" class="active" onclick="setBrightness(false)">OFF</button>
+                        <button id="b1" onclick="setBrightness(true)">ON</button>
+                    </div>
+                </div>
+                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
+                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
+                <div class="mod-slot">???</div>
+            </div>
+            <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
     </div>
 
     <canvas id="game"></canvas>
 
 <script>
-let isRunning = false, lastTime = 0, grid = [], hideSpots = [], monsters = [], items = [], keys = {};
+let chaos = 0, fullBright = false, isRunning = false, lastTime = 0, grid = [], hideSpots = [], monsters = [], items = [], keys = {};
 const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
 const tileSize = 40, baseMoveTime = 320;
 
-let player = { 
-    gridX: 1, gridY: 1, renderX: 0, renderY: 0, 
-    isMoving: false, isHiding: false, moveStart: 0, 
-    hideStartTime: 0, visionBonus: 0 
-};
+let player = { gridX: 1, gridY: 1, renderX: 0, renderY: 0, isMoving: false, isHiding: false, moveStart: 0, hideStartTime: 0, visionBonus: 0 };
 let minigame = { active: false, progress: 50, targetKey: 'w', monsterRef: null };
 let mazeCenter = { x: 0, y: 0 };
 
 function init() {}
+function togglePanel() { 
+    const p = document.getElementById('modifiers-panel'); 
+    p.style.display = (p.style.display === 'grid') ? 'none' : 'grid'; 
+}
+function setChaos(n) { 
+    chaos = (chaos === n) ? 0 : n; 
+    [1,2,3,4].forEach(i => document.getElementById('c'+i).className = (i===chaos?'active':'')); 
+}
+function setBrightness(val) { 
+    fullBright = val; 
+    document.getElementById('b0').className = !val ? 'active' : ''; 
+    document.getElementById('b1').className = val ? 'active' : ''; 
+}
 
 function triggerJumpscare() {
     isRunning = false;
@@ -79,7 +133,6 @@ function generate(size) {
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x] = 0;
     grid[mazeCenter.y-2][mazeCenter.x]=0; grid[mazeCenter.y+2][mazeCenter.x]=0;
     grid[mazeCenter.y][mazeCenter.x-2]=0; grid[mazeCenter.y][mazeCenter.x+2]=0;
-    
     let walls = [];
     const addW = (x,y) => {
         [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy]) => {
@@ -114,14 +167,17 @@ function start() {
     for(let i=0; i<itemCount; i++) {
         let x,y; do { x=Math.floor(Math.random()*grid.length); y=Math.floor(Math.random()*grid.length); } 
         while(grid[y][x]===1 || (x===player.gridX && y===player.gridY));
-        let type = Math.random() < 0.75 ? 'orange' : 'yellow';
-        items.push({x, y, type, active: false});
+        items.push({x, y, type: Math.random() < 0.75 ? 'orange' : 'yellow', active: false});
     }
 
-    monsters = [{
-        gridX: mazeCenter.x, gridY: mazeCenter.y, renderX: mazeCenter.x*tileSize, renderY: mazeCenter.y*tileSize,
-        isMoving: false, isHunting: false, path: [], nextAbilityTime: performance.now() + 10000
-    }];
+    monsters = [];
+    let count = 1 + (chaos === 4 ? 4 : chaos);
+    for(let i=0; i<count; i++) {
+        monsters.push({
+            gridX: mazeCenter.x, gridY: mazeCenter.y, renderX: mazeCenter.x*tileSize, renderY: mazeCenter.y*tileSize,
+            isMoving: false, isHunting: false, path: [], nextAbilityTime: performance.now() + 10000
+        });
+    }
     
     document.getElementById("menu").style.display = "none";
     isRunning = true; lastTime = performance.now();
@@ -138,11 +194,9 @@ function update(now) {
 
     monsters.forEach(m => {
         if(!m.isMoving) {
-            let nx, ny;
             let dirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[m.gridY+d[1]] && grid[m.gridY+d[1]][m.gridX+d[0]] === 0);
             let finalDir = dirs[Math.floor(Math.random()*dirs.length)];
-            if(finalDir) { nx = m.gridX + finalDir[0]; ny = m.gridY + finalDir[1]; }
-            if(nx!==undefined) { m.isMoving = true; m.moveStart = now; m.targetX = nx; m.targetY = ny; }
+            if(finalDir) { m.isMoving = true; m.moveStart = now; m.targetX = m.gridX + finalDir[0]; m.targetY = m.gridY + finalDir[1]; }
         } else {
             let t = Math.min((now - m.moveStart)/320, 1);
             m.renderX = (m.gridX + (m.targetX-m.gridX)*t)*tileSize; m.renderY = (m.gridY + (m.targetY-m.gridY)*t)*tileSize;
@@ -174,69 +228,50 @@ function loop(now) {
     ctx.fillStyle = "#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) {
         if(grid[y][x]===1) { ctx.fillStyle = "#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
-        if(x===mazeCenter.x && y===mazeCenter.y) { ctx.fillStyle = "#642"; ctx.fillRect(x*tileSize+ox+10, y*tileSize+oy+18, 20, 4); }
     }
     
     items.forEach(it => { 
         ctx.fillStyle = it.type === 'orange' ? "#ff8c00" : "#ffd700"; 
         ctx.beginPath(); ctx.arc(it.x*tileSize+ox+20, it.y*tileSize+oy+20, 6, 0, Math.PI*2); ctx.fill(); 
-        if(it.active && it.type === 'orange') {
-            ctx.strokeStyle = "rgba(255, 140, 0, 0.3)"; ctx.lineWidth = 2;
-            ctx.strokeRect(it.x*tileSize+ox - (tileSize), it.y*tileSize+oy - (tileSize), tileSize*4, tileSize*4);
-        }
     });
 
     hideSpots.forEach(s => { ctx.fillStyle = "#030"; ctx.fillRect(s.x*tileSize+ox+10, s.y*tileSize+oy+10, 20, 20); });
     monsters.forEach(m => { ctx.fillStyle = "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
     if(!player.isHiding) { ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 11, 0, Math.PI*2); ctx.fill(); }
     
-    // Lys & Mørke Logikk
-    let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
-    let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
-    tc.globalCompositeOperation = "destination-out";
-    
-    // Spiller Vision
-    let vRad = (player.isHiding ? 300 : 180) + (player.visionBonus * tileSize);
-    let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
-    g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
-    tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
+    if(!fullBright) {
+        let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
+        let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
+        tc.globalCompositeOperation = "destination-out";
+        
+        let vRad = (player.isHiding ? 300 : 180) + (player.visionBonus * tileSize);
+        let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
+        g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
+        tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
 
-    // Aktiverte Orange Lamper (Stasjonære 4x4)
-    items.forEach(it => {
-        if(it.type === 'orange' && it.active) {
-            tc.fillStyle = "white";
-            // Sentrerer 4x4 rutenettet på lampen
-            tc.fillRect(it.x*tileSize+ox - (1.5*tileSize), it.y*tileSize+oy - (1.5*tileSize), 4*tileSize, 4*tileSize);
-        }
-    });
-    
-    ctx.drawImage(t, 0, 0);
+        items.forEach(it => {
+            if(it.type === 'orange' && it.active) {
+                tc.fillStyle = "white";
+                tc.fillRect(it.x*tileSize+ox - (1.5*tileSize), it.y*tileSize+oy - (1.5*tileSize), 4*tileSize, 4*tileSize);
+            }
+        });
+        ctx.drawImage(t, 0, 0);
+    }
     requestAnimationFrame(loop);
 }
 
 window.onkeydown = e => {
     let k = e.key.toLowerCase(); keys[k] = true;
     if(k === 'e' && !player.isMoving) {
-        // Sjekk flukt
         if(player.gridX === mazeCenter.x && player.gridY === mazeCenter.y) { location.reload(); return; }
-        
-        // Sjekk items
         items.forEach(it => {
             if(it.x === player.gridX && it.y === player.gridY && !it.active) {
-                if(it.type === 'orange') {
-                    it.active = true; // Lampen tennes der den ligger
-                } else if(it.type === 'yellow') {
-                    player.visionBonus += 1;
-                    it.active = true; // Markeres som brukt
-                    it.x = -100; // Flytt ut av kartet
-                }
+                if(it.type === 'orange') it.active = true;
+                else if(it.type === 'yellow') { player.visionBonus += 1; it.active = true; it.x = -100; }
             }
         });
-
-        // Sjekk skjulested
         if(hideSpots.some(s => s.x===player.gridX && s.y===player.gridY) && !player.isHiding) {
-            player.isHiding = true; 
-            player.hideStartTime = performance.now();
+            player.isHiding = true; player.hideStartTime = performance.now();
         }
     }
 };
