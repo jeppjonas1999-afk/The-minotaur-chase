@@ -7,10 +7,22 @@
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        #menu-wrapper { display: flex; position: relative; transition: all 0.3s ease; align-items: stretch; }
+        
+        /* MENY-LAYOUT */
+        #menu-wrapper { display: flex; position: relative; align-items: stretch; }
         .box { border: 2px solid #333; padding: 40px; background: #111; width: 400px; text-align: center; position: relative; z-index: 2; }
+        
+        /* MODUL-PANEL (Høyre side) */
         #modifiers-panel { display: none; width: 420px; background: #111; border: 2px solid #333; border-left: none; padding: 20px; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; box-sizing: border-box; }
         #expand-btn { position: absolute; right: -50px; top: 50%; transform: translateY(-50%); width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; color: #fff; font-size: 30px; cursor: pointer; border-radius: 0 10px 10px 0; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        
+        /* STORE SELECT-BOKSER */
+        .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        select, .start-btn { width: 100%; padding: 15px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-size: 16px; font-family: inherit; }
+        .start-btn { margin-top: 25px; background: #200; border-color: #500; font-weight: bold; transition: 0.2s; }
+        .start-btn:hover { background: #500; border-color: #f00; }
+
+        /* GAMEMODE KORT */
         .mod-card { display: flex; flex-direction: column; align-items: center; text-align: center; }
         .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8 / 1; position: relative; border: 1px solid #444; }
         .mod-title { position: absolute; bottom: 2px; width: 100%; text-align: center; color: #000; font-size: 11px; font-weight: bold; text-transform: uppercase; }
@@ -18,13 +30,15 @@
         .mod-btns { display: flex; gap: 4px; width: 100%; }
         .mod-btns button { padding: 4px; font-size: 12px; flex: 1; background: #1a1a1a; border: 1px solid #444; color: #fff; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; font-weight: bold; }
-        .mod-card.blank { opacity: 0.2; }
-        h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; margin: 0; }
+        .mod-card.blank { opacity: 0.15; }
+
+        h1 { letter-spacing: 10px; color: #800; text-shadow: 0 0 10px #f00; margin: 0 0 10px 0; }
+        #menu-tip { color: #555; font-size: 11px; text-transform: uppercase; margin-bottom: 10px; }
+        
         #sniff-alert { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); color: #ff0000; font-size: 24px; font-weight: bold; display: none; z-index: 200; text-align: center; text-shadow: 0 0 10px #f00; }
         #jumpscare { position: absolute; inset: 0; background: #000; display: none; z-index: 1000; justify-content: center; align-items: center; }
         .scare-face { width: 100%; height: 100%; background: radial-gradient(circle, #f00 0%, #000 70%); display: flex; justify-content: center; align-items: center; animation: shake 0.1s infinite; }
         @keyframes shake { 0% { transform: translate(5px, 5px); } 50% { transform: translate(-5px, -10px); } 100% { transform: translate(5px, 5px); } }
-        #victory-screen { display: none; background: rgba(0, 50, 0, 0.9); }
     </style>
 </head>
 <body onload="initMenu()">
@@ -36,17 +50,22 @@
             <div class="box">
                 <h1>MINOTAUR</h1>
                 <p id="menu-tip">Laster tips...</p>
+                
+                <span class="menu-label">Kartstørrelse</span>
                 <select id="size">
-                    <option value="15">LITEN</option>
-                    <option value="25" selected>STOR</option>
-                    <option value="45">DIGERT</option>
+                    <option value="15">LITEN (15x15)</option>
+                    <option value="25" selected>STOR (25x25)</option>
+                    <option value="45">DIGERT (45x45)</option>
                 </select>
+
+                <span class="menu-label">Vanskelighetsgrad</span>
                 <select id="diff">
-                    <option value="easy">ENKEL</option>
-                    <option value="medium" selected>MEDIUM</option>
-                    <option value="hard">VANSKELIG</option>
+                    <option value="easy">ENKEL (0% lyd-sjanse)</option>
+                    <option value="medium" selected>MEDIUM (1% lyd-sjanse)</option>
+                    <option value="hard">VANSKELIG (3% lyd-sjanse)</option>
                 </select>
-                <button style="width:100%; padding:12px; background:#1a1a1a; color:#fff; border:1px solid #333; margin-top:10px; cursor:pointer;" onclick="start()">START FLUKTEN</button>
+
+                <button class="start-btn" onclick="start()">START FLUKTEN</button>
             </div>
             
             <div id="modifiers-panel">
@@ -67,7 +86,7 @@
     </div>
 
     <div id="jumpscare"><div class="scare-face"><h1 style="font-size: 80px; color: #fff;">FANGET!</h1></div></div>
-    <div id="victory-screen" class="overlay"><div class="box" style="border-color: #0f0;"><h1 style="color: #0f0;">FRIHET</h1><button onclick="location.reload()">SPILL IGJEN</button></div></div>
+    <div id="victory-screen" class="overlay" style="display:none;"><div class="box" style="border-color: #0f0;"><h1 style="color: #0f0;">FRIHET</h1><button class="start-btn" onclick="location.reload()">SPILL IGJEN</button></div></div>
     <canvas id="game"></canvas>
 
 <script>
@@ -84,7 +103,7 @@ function toggleChaos(lvl) {
     for(let i=1; i<=4; i++) document.getElementById('btn-chaos-'+i).className = (i === chaosLevel) ? 'active' : '';
 }
 function initMenu() {
-    const tips = ["Løp rundt hjørner for å miste forfølgere!", "Vinner du i boksen, rømmer minotauren.", "Gul belysning hjelper deg å se mer."];
+    const tips = ["Løp rundt hjørner for å miste forfølgere!", "Vinner du i boksen, rømmer minotauren.", "Minotauren spurter til der den sist så deg."];
     document.getElementById("menu-tip").innerText = tips[Math.floor(Math.random() * tips.length)];
 }
 
@@ -245,24 +264,16 @@ function loop(now) {
     hideSpots.forEach(s=>{ ctx.fillStyle="rgba(0,100,0,0.3)"; ctx.fillRect(s.x*tileSize+ox+5,s.y*tileSize+oy+5,tileSize-10,tileSize-10); });
     items.forEach(it=>{ ctx.fillStyle=it.type==='orange'?"#ffa500":"#ffff00"; ctx.beginPath(); ctx.arc(it.x*tileSize+ox+20,it.y*tileSize+oy+20,8,0,Math.PI*2); ctx.fill(); });
     ctx.fillStyle="#0f0"; ctx.fillRect(exit.x*tileSize+ox+10,exit.y*tileSize+oy+10,20,20);
-    
     monsters.forEach(m=>{ 
-        ctx.fillStyle = m.isAggro ? "#ff4d4d" : "#660000"; // Lysere rød når aggro
-        ctx.beginPath(); ctx.arc(m.renderX+ox+20,m.renderY+oy+20,14,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = m.isAggro ? "#ff4d4d" : "#660000"; ctx.beginPath(); ctx.arc(m.renderX+ox+20,m.renderY+oy+20,14,0,Math.PI*2); ctx.fill();
     });
-
     if(!player.isHiding){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(canvas.width/2,canvas.height/2,10,0,Math.PI*2); ctx.fill(); }
-    
     let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
     tc.fillStyle="rgba(0,0,0,0.97)"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
     let pg=tc.createRadialGradient(t.width/2,t.height/2,10,t.width/2,t.height/2,player.visionRadius); pg.addColorStop(0,"white"); pg.addColorStop(1,"transparent"); tc.fillStyle=pg; tc.beginPath(); tc.arc(t.width/2,t.height/2,player.visionRadius,0,Math.PI*2); tc.fill();
     placedLights.forEach(l=>{ let lx=l.x*tileSize+ox+20,ly=l.y*tileSize+oy+20; let lg=tc.createRadialGradient(lx,ly,10,lx,ly,160); lg.addColorStop(0,"white"); lg.addColorStop(1,"transparent"); tc.fillStyle=lg; tc.beginPath(); tc.arc(lx,ly,160,0,Math.PI*2); tc.fill(); });
     ctx.drawImage(t,0,0);
-
-    if(minigame.active){ 
-        ctx.fillStyle="#fff"; ctx.font="20px Courier"; ctx.textAlign="center"; 
-        ctx.fillText("HAMRE ["+minigame.targetKey.toUpperCase()+"]!", canvas.width/2, canvas.height/2+100);
-    }
+    if(minigame.active){ ctx.fillStyle="#fff"; ctx.font="20px Courier"; ctx.textAlign="center"; ctx.fillText("HAMRE ["+minigame.targetKey.toUpperCase()+"]!", canvas.width/2, canvas.height/2+100); }
     requestAnimationFrame(loop);
 }
 
@@ -276,8 +287,7 @@ window.onkeydown=e=>{
         let i=items.findIndex(it=>it.x===player.gridX&&it.y===player.gridY); 
         if(i!==-1){ if(items[i].type==='orange')placedLights.push({x:player.gridX,y:player.gridY}); else player.visionRadius+=60; items.splice(i,1); return; } 
         if(hideSpots.some(h=>h.x===player.gridX&&h.y===player.gridY) && !player.isHiding){ 
-            player.isHiding=true; 
-            if(monsters.some(m=>m.isAggro||Math.abs(m.gridX-player.gridX)<5)) { minigame.active=true; minigame.progress=50; }
+            player.isHiding=true; if(monsters.some(m=>m.isAggro||Math.abs(m.gridX-player.gridX)<5)) { minigame.active=true; minigame.progress=50; }
         }
     }
 };
