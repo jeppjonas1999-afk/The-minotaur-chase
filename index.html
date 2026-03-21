@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.5.0 U Minotaur</title>
+    <title>Minotaur: The Vault - v.5.1 Speed & Balansering</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -23,8 +23,7 @@
         
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold;}
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
-        .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; transition: 0.2s; }
-        .start-btn:hover { background: #500; }
+        .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
         
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
@@ -63,26 +62,18 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.0 U MINOTAUR</p>
-                
-                <span class="menu-label" style="color:#a00;">Gamemode</span>
-                <select id="gmode" style="border-color:#800;"><option value="standard">ESCAPE (Standard)</option><option value="uminotaur">U MINOTAUR (Hunt)</option></select>
-                
-                <span class="menu-label">Map Size</span>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.5.1 SPEED UPDATE</p>
+                <select id="gmode"><option value="standard">ESCAPE</option><option value="uminotaur">U MINOTAUR</option></select>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
-                
-                <span class="menu-label">Difficulty</span>
-                <select id="diff"><option value="easy">EASY</option><option value="hard" selected>HARD</option><option value="insane">INSANE</option></select>
-                
+                <select id="diff"><option value="easy">EASY (0.8x)</option><option value="hard" selected>HARD (1.2x)</option><option value="insane">INSANE (1.5x)</option></select>
                 <button class="start-btn" onclick="start()">START GAME</button>
             </div>
             <div id="modifiers-panel">
                 <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
                 <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightness(false)">OFF</button><button id="b1" onclick="setBrightness(true)">ON</button></div></div>
                 <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
-                <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS AHOY</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
-                <div class="mod-slot">???</div><div class="mod-slot">???</div>
-                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
+                <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
+                <div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div><div class="mod-slot">???</div>
             </div>
             <div id="expand-btn" onclick="togglePanel()">+</div>
         </div>
@@ -90,15 +81,14 @@
     <canvas id="game"></canvas>
 
 <script>
-let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, isRunning=false, lastTime=0, grid=[], hideSpots=[], monsters=[], items=[], traps=[], keys={};
-let gameMode = 'standard';
-let humans = [];
-let revealPath = [];
-let revealTimer = 0;
+let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, isRunning=false, lastTime=0, grid=[], items=[], traps=[], keys={};
+let gameMode = 'standard', humans = [], revealPath = [], revealTimer = 0, hideSpots = [];
+let baseHumanSpeed = 320; 
+let difficultyMult = 1.2;
 
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const tileSize=40;
-let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, isHiding:false, moveStart:0, hideStartTime:0, visionBonus:0, slowTimer:0, isSniffing:false, sniffStart:0, nextAbility:0 };
+let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, isHiding:false, moveStart:0, visionBonus:0, slowTimer:0, isSniffing:false, sniffStart:0, nextAbility:0, speedBoostEnd:0 };
 let mazeCenter = { x:0, y:0 };
 
 function togglePanel() { const p=document.getElementById('modifiers-panel'); p.style.display=(p.style.display==='grid')?'none':'grid'; }
@@ -110,24 +100,14 @@ function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('
 
 function handleInteract() {
     if(!isRunning || player.isMoving) return;
-    
     if(gameMode === 'uminotaur') {
         if(!player.isSniffing && performance.now() > player.nextAbility) {
-            player.isSniffing = true;
-            player.sniffStart = performance.now();
+            player.isSniffing = true; player.sniffStart = performance.now();
         }
         return;
     }
-
-    if(Math.abs(player.gridX-mazeCenter.x)<=1 && Math.abs(player.gridY-mazeCenter.y)<=1) { alert("DU VANT!"); location.reload(); return; }
-    
-    items.forEach(it => { 
-        if(it.x===player.gridX && it.y===player.gridY && !it.active) { 
-            if(it.type==='orange') it.active = true; 
-            else { player.visionBonus+=1; it.x=-100; } 
-        } 
-    });
-    if(hideSpots.some(s => s.x===player.gridX && s.y===player.gridY) && !player.isHiding) { player.isHiding=true; player.hideStartTime=performance.now(); }
+    if(Math.abs(player.gridX-mazeCenter.x)<=1 && Math.abs(player.gridY-mazeCenter.y)<=1) { alert("VUNNET!"); location.reload(); return; }
+    items.forEach(it => { if(it.x===player.gridX && it.y===player.gridY && !it.active) { if(it.type==='orange') it.active=true; else {player.visionBonus++; it.x=-100;} } });
 }
 
 function getPath(sx, sy, tx, ty) {
@@ -139,308 +119,150 @@ function getPath(sx, sy, tx, ty) {
             let nx=cur.x+dx, ny=cur.y+dy;
             if(grid[ny] && grid[ny][nx]===0 && !vis.has(nx+','+ny)) { vis.add(nx+','+ny); q.push([...path, {x:nx, y:ny}]); }
         });
-    }
-    return [];
-}
-
-function generate(size) {
-    let dim = size*2+1; grid = Array.from({length:dim},()=>Array(dim).fill(1));
-    mazeCenter = {x:Math.floor(dim/2), y:Math.floor(dim/2)};
-    let walls = []; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
-    grid[1][1]=0; addW(1,1);
-    while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
-    for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
+    } return [];
 }
 
 function start() {
     gameMode = document.getElementById("gmode").value;
-    let s=parseInt(document.getElementById("size").value); generate(s);
+    let d = document.getElementById("diff").value;
+    difficultyMult = d==='easy'?0.8 : (d==='hard'?1.2 : 1.5);
+    let s=parseInt(document.getElementById("size").value);
+    let dim = s*2+1; grid = Array.from({length:dim},()=>Array(dim).fill(1));
+    mazeCenter = {x:Math.floor(dim/2), y:Math.floor(dim/2)};
     
-    player.visionBonus=0; player.slowTimer=0; items=[]; traps=[]; humans=[]; revealPath=[]; revealTimer=0; player.isSniffing=false;
-    
-    if(gameMode === 'standard') {
-        player.gridX=1; player.gridY=grid.length-2;
-    } else {
-        player.gridX=mazeCenter.x; player.gridY=mazeCenter.y;
-        player.nextAbility = performance.now() + 5000; // Ready after 5 sec
-        // Spawn AI Humans
+    // Maze gen
+    let walls = []; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
+    grid[1][1]=0; addW(1,1);
+    while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
+    for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
+
+    player.visionBonus=0; player.slowTimer=0; items=[]; traps=[]; humans=[]; revealPath=[]; player.isSniffing=false;
+    if(gameMode==='standard') { player.gridX=1; player.gridY=dim-2; } 
+    else { 
+        player.gridX=mazeCenter.x; player.gridY=mazeCenter.y; player.nextAbility=performance.now()+2000;
         for(let i=0; i<4; i++) {
-            let hx, hy;
-            do { hx=Math.floor(Math.random()*grid.length); hy=Math.floor(Math.random()*grid.length); }
-            while(grid[hy][hx]===1 || (Math.abs(hx-mazeCenter.x)<5 && Math.abs(hy-mazeCenter.y)<5));
-            humans.push({ gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0, targetX:hx, targetY:hy, slowTimer:0 });
+            let hx, hy; do { hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim); } while(grid[hy][hx]===1 || Math.hypot(hx-mazeCenter.x, hy-mazeCenter.y)<5);
+            humans.push({ gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, moveStart:0, slowTimer:0 });
         }
     }
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
-
-    if(document.getElementById('mobile-toggle').checked) document.getElementById('mobile-ui').style.display = 'block';
     
-    // TRAPS
+    monsters = []; let mCount=1+(chaos===4?4:chaos);
+    if(gameMode==='standard' || chaos>0) {
+        for(let i=0; i<mCount; i++) monsters.push({ gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, isHunting:false, path:[], nextAbility: performance.now()+3000, hasBoost:false });
+    }
+
     if(trapLevel > 0) {
-        let count = (trapLevel === 1 ? 15 : 25) * s;
-        for(let i=0; i<count; i++) {
-            let x,y, tries=0;
-            do { x=Math.floor(Math.random()*grid.length); y=Math.floor(Math.random()*grid.length); tries++; }
-            while((grid[y][x]===1 || (x===player.gridX && y===player.gridY) || (Math.abs(x-mazeCenter.x)<2 && Math.abs(y-mazeCenter.y)<2)) && tries<50);
-            if(tries<50) traps.push({x, y, type: Math.random() < 0.5 ? 'sound' : (Math.random() < 0.99 ? 'glue' : 'spikes'), active:true, anim:0});
+        for(let i=0; i<20*s; i++) {
+            let x,y; do { x=Math.floor(Math.random()*dim); y=Math.floor(Math.random()*dim); } while(grid[y][x]===1);
+            traps.push({x,y,type:Math.random()<0.5?'sound':(Math.random()<0.9?'glue':'spikes'),active:true,anim:0});
         }
     }
-    
-    let baseI=s===15?20:(s===25?40:60);
-    for(let i=0; i<s*2; i++){ let x,y; do{x=Math.floor(Math.random()*grid.length);y=Math.floor(Math.random()*grid.length);}while(grid[y][x]===1||(Math.abs(x-mazeCenter.x)<3&&Math.abs(y-mazeCenter.y)<3)); hideSpots.push({x,y});}
-    for(let i=0; i<baseI; i++) { let x,y; do{x=Math.floor(Math.random()*grid.length);y=Math.floor(Math.random()*grid.length);}while(grid[y][x]===1||(x===player.gridX&&y===player.gridY)); items.push({x,y,type:Math.random()<0.75?'orange':'yellow',active:false}); }
-    
-    // MONSTERS (Allies if U Minotaur)
-    monsters = []; let mCount=1+(chaos===4?4:chaos);
-    if(gameMode === 'standard' || chaos > 0) {
-        for(let i=0; i<mCount; i++) monsters.push({ gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isSniffing:false, isHunting:false, path:[], timer:0, nextAbility: performance.now()+5000 });
-    }
-    
+
     document.getElementById("menu").style.display="none"; isRunning=true; lastTime=performance.now(); requestAnimationFrame(loop);
 }
 
 function update(now) {
     if(!isRunning) return; let dt=(now-lastTime)/1000; lastTime=now;
-    if(player.slowTimer > 0) player.slowTimer -= dt;
-
-    // AI MINOTAURS / ALLIES
+    
+    // AI MONSTERS
     monsters.forEach(m => {
-        if(!m.isSniffing && !m.isHunting && now > m.nextAbility) { m.isSniffing = true; m.timer = now; m.isMoving = false; }
+        if(!m.isSniffing && !m.isHunting && now > m.nextAbility) { m.isSniffing=true; m.timer=now; m.isMoving=false; }
         if(m.isSniffing) {
-            if(now - m.timer > 2500) {
-                m.isSniffing = false;
-                if(gameMode === 'standard') {
-                    if(!player.isHiding) { m.isHunting = true; m.path = getPath(m.gridX, m.gridY, player.gridX, player.gridY); }
-                } else {
-                    let alive = humans.filter(h=>!h.isDead);
-                    if(alive.length > 0) {
-                        let t = alive[Math.floor(Math.random()*alive.length)];
-                        m.isHunting = true; m.path = getPath(m.gridX, m.gridY, t.gridX, t.gridY);
-                    }
-                }
-                m.nextAbility = now + 8000 + Math.random()*5000;
-            }
-            return;
+            if(now-m.timer > 2500) {
+                m.isSniffing=false; m.hasBoost=true; // Får boost til målet er nådd
+                if(gameMode==='standard') { if(!player.isHiding) m.path=getPath(m.gridX, m.gridY, player.gridX, player.gridY); }
+                else { let a=humans.filter(h=>!h.isDead); if(a.length>0) { let t=a[Math.floor(Math.random()*a.length)]; m.path=getPath(m.gridX, m.gridY, t.gridX, t.gridY); } }
+                m.nextAbility=now+15000;
+            } return;
         }
         if(!m.isMoving) {
             let nx, ny;
-            if(m.isHunting && m.path.length > 0) { let step=m.path.shift(); nx=step.x; ny=step.y; if(m.path.length === 0) m.isHunting = false; }
-            else {
-                let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0);
-                let f=dirs[Math.floor(Math.random()*dirs.length)]; if(f){ nx=m.gridX+f[0]; ny=m.gridY+f[1]; }
-            }
+            if(m.path.length>0) { let step=m.path.shift(); nx=step.x; ny=step.y; if(m.path.length===0) m.hasBoost=false; }
+            else { let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); let f=dirs[Math.floor(Math.random()*dirs.length)]; if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} }
             if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
         } else {
-            let speed = m.isHunting ? 160 : 320;
+            let speed = (baseHumanSpeed / difficultyMult); // Base minotaur speed
+            if(m.hasBoost) speed /= 2.5; // Lukte-boost
             let t=Math.min((now-m.moveStart)/speed, 1);
             m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
             if(t===1){ m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false; }
         }
     });
 
-    // U MINOTAUR LOGIC (Player Ability & Humans)
-    if(gameMode === 'uminotaur') {
-        if(keys['e'] && !player.isMoving && !player.isSniffing && now > player.nextAbility) {
-            player.isSniffing = true; player.sniffStart = now;
+    // U MINOTAUR PLAYER ABILITY
+    if(gameMode==='uminotaur') {
+        if(player.isSniffing && now-player.sniffStart > 2500) {
+            player.isSniffing=false; player.nextAbility=now+25000; player.speedBoostEnd=now+7500;
+            let a=humans.filter(h=>!h.isDead);
+            if(a.length>0) { revealPath=getPath(player.gridX, player.gridY, a[Math.floor(Math.random()*a.length)].gridX, a[Math.floor(Math.random()*a.length)].gridY); revealTimer=now+7500; }
         }
-        if(player.isSniffing) {
-            if(now - player.sniffStart > 2500) {
-                player.isSniffing = false; player.nextAbility = now + 25000;
-                let alive = humans.filter(h=>!h.isDead);
-                if(alive.length > 0) {
-                    let target = alive[Math.floor(Math.random()*alive.length)];
-                    revealPath = getPath(player.gridX, player.gridY, target.gridX, target.gridY);
-                    revealTimer = now + 5000; // Show path for 5s
-                }
-            }
-        }
-
-        // Humans movement
         humans.forEach(h => {
             if(h.isDead) return;
-            if(h.slowTimer > 0) h.slowTimer -= dt;
-            
-            // Check death by minotaurs
-            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY) < 25) h.isDead = true;
-            monsters.forEach(m => { if(Math.hypot(m.renderX-h.renderX, m.renderY-h.renderY) < 25) h.isDead = true; });
-            
-            if(!h.isMoving && !h.isDead) {
+            if(Math.hypot(player.renderX-h.renderX, player.renderY-h.renderY)<25) h.isDead=true;
+            if(!h.isMoving) {
                 let dirs=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[h.gridY+d[1]]&&grid[h.gridY+d[1]][h.gridX+d[0]]===0);
-                let danger = [player, ...monsters].find(m => Math.hypot(m.gridX-h.gridX, m.gridY-h.gridY) < 6);
-                if(danger) {
-                    dirs.sort((a,b) => {
-                        let dA = Math.hypot((h.gridX+a[0])-danger.gridX, (h.gridY+a[1])-danger.gridY);
-                        let dB = Math.hypot((h.gridX+b[0])-danger.gridX, (h.gridY+b[1])-danger.gridY);
-                        return dB - dA;
-                    });
-                }
-                let f = danger ? dirs[0] : dirs[Math.floor(Math.random()*dirs.length)];
-                if(f) { h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
-            } else if (h.isMoving) {
-                let speed = h.slowTimer > 0 ? 500 : 250; 
-                let t = Math.min((now - h.moveStart)/speed, 1);
-                h.renderX = (h.gridX + (h.targetX-h.gridX)*t)*tileSize;
-                h.renderY = (h.gridY + (h.targetY-h.gridY)*t)*tileSize;
-                if(t===1) { 
-                    h.gridX = h.targetX; h.gridY = h.targetY; h.isMoving = false; 
-                    // Trap logic for humans
-                    traps.forEach(t => {
-                        if(t.active && t.x === h.gridX && t.y === h.gridY) {
-                            if(t.type === 'spikes') { h.isDead = true; }
-                            if(t.type === 'glue') { h.slowTimer = 3; t.active = false; }
-                            if(t.type === 'sound') { 
-                                t.anim = 1; t.active = false; 
-                                revealPath = getPath(player.gridX, player.gridY, h.gridX, h.gridY);
-                                revealTimer = now + 5000;
-                            }
-                        }
-                    });
+                let f=dirs[Math.floor(Math.random()*dirs.length)];
+                if(f){ h.isMoving=true; h.moveStart=now; h.targetX=h.gridX+f[0]; h.targetY=h.gridY+f[1]; }
+            } else {
+                let t=Math.min((now-h.moveStart)/baseHumanSpeed, 1);
+                h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
+                if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; 
+                    traps.forEach(tr=>{ if(tr.active && tr.x===h.gridX && tr.y===h.gridY && tr.type==='sound'){ tr.anim=1; tr.active=false; revealPath=getPath(player.gridX, player.gridY, h.gridX, h.gridY); revealTimer=now+7500; } });
                 }
             }
         });
-
-        if(humans.length > 0 && humans.every(h => h.isDead)) {
-            alert("DU DREPTE ALLE! MINOTAUREN VINNER!"); location.reload();
-        }
     }
 
     // PLAYER MOVEMENT
-    if(!player.isHiding && !player.isMoving && !player.isSniffing) {
+    if(!player.isMoving && !player.isSniffing) {
         let dx=0, dy=0; if(keys['w']) dy=-1; else if(keys['s']) dy=1; else if(keys['a']) dx=-1; else if(keys['d']) dx=1;
-        if(dx!==0 || dy!==0) {
-            let nx = player.gridX+dx, ny = player.gridY+dy;
-            if(grid[ny] && grid[ny][nx]===0) { 
-                player.isMoving = true; player.moveStart = now; player.targetX = nx; player.targetY = ny; 
-                if(gameMode === 'standard') {
-                    traps.forEach(t => {
-                        if(t.active && t.x === nx && t.y === ny) {
-                            if(t.type === 'spikes') { isRunning=false; document.getElementById("jumpscare").style.display="flex"; setTimeout(()=>location.reload(),1500); }
-                            if(t.type === 'glue') { player.slowTimer = 3; t.active = false; }
-                            if(t.type === 'sound') { t.anim = 1; t.active = false; monsters.forEach(m => { m.isHunting = true; m.path = getPath(m.gridX, m.gridY, nx, ny); }); }
-                        }
-                    });
-                }
-            }
+        if(dx||dy) {
+            let nx=player.gridX+dx, ny=player.gridY+dy;
+            if(grid[ny] && grid[ny][nx]===0) { player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny; }
         }
     } else if(player.isMoving) {
-        let baseSpeed = 320; if(player.slowTimer > 0) baseSpeed *= 1.75;
-        let t = Math.min((now - player.moveStart)/baseSpeed, 1);
-        player.renderX = (player.gridX + (player.targetX-player.gridX)*t)*tileSize;
-        player.renderY = (player.gridY + (player.targetY-player.gridY)*t)*tileSize;
-        if(t===1) { player.gridX = player.targetX; player.gridY = player.targetY; player.isMoving = false; }
-    }
-
-    if(gameMode === 'standard' && !player.isHiding && monsters.some(m => Math.hypot(m.renderX-player.renderX, m.renderY-player.renderY) < 25)) {
-        isRunning = false; document.getElementById("jumpscare").style.display = "flex";
-        setTimeout(() => location.reload(), 1500);
+        let speed = baseHumanSpeed;
+        if(gameMode==='uminotaur') {
+            speed = baseHumanSpeed / difficultyMult;
+            if(now < player.speedBoostEnd) speed /= 2.5;
+        }
+        let t=Math.min((now-player.moveStart)/speed, 1);
+        player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
+        if(t===1){ player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false; }
     }
 }
 
 function loop(now) {
     if(!isRunning) return; update(now);
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    const ox = canvas.width/2 - player.renderX - 20, oy = canvas.height/2 - player.renderY - 20;
+    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+    const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
+    ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     
-    ctx.fillStyle = "#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    
-    // Grid
-    for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) {
-        if(grid[y][x]===1) { ctx.fillStyle = "#111"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
-        if(gameMode === 'standard' && x===mazeCenter.x && y===mazeCenter.y) { ctx.fillStyle = "#642"; ctx.fillRect(x*tileSize+ox+10, y*tileSize+oy+18, 20, 4); }
-    }
-    
-    // Pathfinding reveal (U Minotaur)
-    if(revealTimer > now && revealPath.length > 0) {
-        ctx.strokeStyle = `rgba(255, 0, 0, ${0.4 + Math.abs(Math.sin(now*0.005))*0.6})`; 
-        ctx.lineWidth = 4; ctx.beginPath();
-        ctx.moveTo(player.renderX + ox + 20, player.renderY + oy + 20);
-        revealPath.forEach(p => ctx.lineTo(p.x*tileSize + ox + 20, p.y*tileSize + oy + 20));
-        ctx.stroke();
+    if(revealTimer>now) {
+        ctx.strokeStyle="rgba(255,0,0,0.6)"; ctx.lineWidth=4; ctx.beginPath();
+        ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20);
+        revealPath.forEach(p=>ctx.lineTo(p.x*tileSize+ox+20, p.y*tileSize+oy+20)); ctx.stroke();
     }
 
-    // Traps
-    traps.forEach(t => {
-        if(!t.active && t.anim <= 0) return;
-        ctx.fillStyle = t.type === 'sound' ? "#1a1a1a" : (t.type === 'glue' ? "#eee8aa" : "#8b5a2b");
-        if(t.active) ctx.fillRect(t.x*tileSize+ox+15, t.y*tileSize+oy+15, 10, 10);
-        if(t.anim > 0) {
-            ctx.strokeStyle = `rgba(255, 0, 0, ${t.anim})`; ctx.lineWidth = 2; // Røde sirkler ved lydfelle
-            ctx.beginPath(); ctx.arc(t.x*tileSize+ox+20, t.y*tileSize+oy+20, (1-t.anim)*100, 0, Math.PI*2); ctx.stroke();
-            t.anim -= 0.02;
-        }
-    });
-
-    // Standard Items/Hideouts
-    if(gameMode === 'standard') {
-        items.forEach(it => { 
-            if(it.x === -100) return; 
-            ctx.fillStyle = it.type === 'orange' ? (it.active ? "#ffca28" : "#ff8c00") : "#ffd700"; 
-            ctx.beginPath(); ctx.arc(it.x*tileSize+ox+20, it.y*tileSize+oy+20, it.active?8:6, 0, Math.PI*2); ctx.fill(); 
-        });
-        hideSpots.forEach(s => { ctx.fillStyle = "#030"; ctx.fillRect(s.x*tileSize+ox+10, s.y*tileSize+oy+10, 20, 20); });
-    } else {
-        // Draw humans
-        humans.forEach(h => {
-            ctx.fillStyle = h.isDead ? "#8b0000" : "#fff";
-            ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill();
-        });
-    }
-
-    // Monsters (AI)
-    monsters.forEach(m => { 
-        ctx.fillStyle = "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); 
-        if(m.isSniffing) {
-            ctx.save(); ctx.translate(m.renderX+ox+20, m.renderY+oy+20); ctx.rotate(now * 0.01);
-            ctx.strokeStyle = "#f00"; ctx.lineWidth = 3;
-            for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10, -30); ctx.lineTo(0, -20); ctx.lineTo(10, -30); ctx.stroke(); }
-            ctx.restore();
-        }
+    humans.forEach(h=>{ ctx.fillStyle=h.isDead?"#400":"#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill(); });
+    monsters.forEach(m=>{ ctx.fillStyle="#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); 
+        if(m.isSniffing) { ctx.strokeStyle="#fff"; ctx.strokeRect(m.renderX+ox, m.renderY+oy, 40, 40); }
     });
     
-    // Player
-    if(!player.isHiding) { 
-        ctx.fillStyle = gameMode === 'standard' ? "#fff" : "#f00"; 
-        ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, gameMode === 'standard' ? 11 : 16, 0, Math.PI*2); ctx.fill(); 
-        if(player.isSniffing) {
-            ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(now * 0.01);
-            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
-            for(let i=0; i<4; i++) { ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10, -30); ctx.lineTo(0, -20); ctx.lineTo(10, -30); ctx.stroke(); }
-            ctx.restore();
-        }
+    ctx.fillStyle=gameMode==='standard'?"#fff":"#f00"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, gameMode==='standard'?11:16, 0, Math.PI*2); ctx.fill();
+    if(player.isSniffing) { // Spinning arrows under stun
+        ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.rotate(now*0.01);
+        ctx.strokeStyle="#fff"; ctx.lineWidth=3; for(let i=0; i<4; i++){ ctx.rotate(Math.PI/2); ctx.beginPath(); ctx.moveTo(-10,-30); ctx.lineTo(0,-20); ctx.lineTo(10,-30); ctx.stroke(); } ctx.restore();
     }
-    
-    // Fog of War
-    if(!fullBright) {
-        let t = document.createElement('canvas'); t.width = canvas.width; t.height = canvas.height;
-        let tc = t.getContext('2d'); tc.fillStyle = "black"; tc.fillRect(0,0,t.width,t.height);
-        tc.globalCompositeOperation = "destination-out";
-        
-        // Player Vision
-        let vRad = (player.isHiding ? 300 : 180) + (player.visionBonus * tileSize);
-        if(gameMode === 'uminotaur') vRad = 350; // Bedre syn for Minotauren
-        let g = tc.createRadialGradient(t.width/2, t.height/2, 0, t.width/2, t.height/2, vRad);
-        g.addColorStop(0, "white"); g.addColorStop(1, "transparent");
-        tc.fillStyle = g; tc.beginPath(); tc.arc(t.width/2, t.height/2, vRad, 0, Math.PI*2); tc.fill();
-        
-        // Standard items light
-        if(gameMode === 'standard') {
-            items.forEach(it => {
-                if(it.type === 'orange' && it.active) {
-                    let lx = it.x*tileSize+ox+20, ly = it.y*tileSize+oy+20;
-                    let lg = tc.createRadialGradient(lx, ly, 0, lx, ly, tileSize*2);
-                    lg.addColorStop(0, "rgba(255,255,255,1)"); lg.addColorStop(1, "transparent");
-                    tc.fillStyle = lg; tc.beginPath(); tc.arc(lx, ly, tileSize*2, 0, Math.PI*2); tc.fill();
-                }
-            });
-        }
-        ctx.drawImage(t, 0, 0);
-    }
+
     requestAnimationFrame(loop);
 }
 
-window.onkeydown = e => { let k = e.key.toLowerCase(); keys[k] = true; if(k === 'e') handleInteract(); };
-window.onkeyup = e => keys[e.key.toLowerCase()] = false;
-function init() {}
+window.onkeydown=e=>{ keys[e.key.toLowerCase()]=true; if(e.key==='e') handleInteract(); };
+window.onkeyup=e=>keys[e.key.toLowerCase()]=false;
+function init(){}
 </script>
 </body>
 </html>
