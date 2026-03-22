@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.6.8 Trash & Sniff Restored</title>
+    <title>Minotaur: The Vault - v.6.9 Sniff & Minigame Update</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -42,7 +42,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.6.8 TRASH & SNIFF FIX</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.6.9 ULTIMATE FIX</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -65,7 +65,12 @@
 <script>
 let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, grid=[], items=[], trashCans=[], humans=[], monsters=[];
 let lastItemSpawn = 0, visionBonus = 0, activeOranges = [];
-let player = { gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0 };
+let activeMinigame = null;
+let player = { 
+    gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
+    isHidden: false, lastSniff: -25000, isSniffStunned: false, isSniffActive: false, 
+    sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null 
+};
 let mazeCenter={x:0,y:0}, difficultyMult=1.2, baseHumanSpeed=320;
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d"), tileSize=40;
 
@@ -103,13 +108,11 @@ function start() {
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
     
-    items=[]; visionBonus=0; activeOranges=[]; trashCans=[];
+    items=[]; visionBonus=0; activeOranges=[]; trashCans=[]; activeMinigame=null;
     
-    // Spawn Items
     let initialItems = itemMadness ? 50 : 15;
     for(let i=0; i<initialItems; i++) spawnItem(dim);
     
-    // Spawn Trash Cans
     for(let i=0; i<30; i++) {
         let tx, ty, tries=0;
         do { tx=Math.floor(Math.random()*dim); ty=Math.floor(Math.random()*dim); tries++; }
@@ -118,6 +121,8 @@ function start() {
     }
 
     humans=[]; monsters=[];
+    player.lastSniff = -25000; player.isSniffStunned = false; player.isSniffActive = false; player.isHidden = false;
+
     if(uMinoMode) {
         player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
         for(let i=0; i<4; i++) {
@@ -126,7 +131,13 @@ function start() {
         }
     } else {
         player.gridX=1; player.gridY=dim-2;
-        for(let i=0; i<(1+chaos); i++) monsters.push({gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false, isChasing:false});
+        for(let i=0; i<(1+chaos); i++) {
+            monsters.push({
+                gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, 
+                isMoving:false, isChasing:false, lastSniff: -25000, isSniffStunned: false, isSniffActive: false, 
+                sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null
+            });
+        }
     }
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
     document.getElementById("menu").style.display="none"; isRunning=true; lastItemSpawn=performance.now(); requestAnimationFrame(loop);
@@ -135,16 +146,23 @@ function start() {
 function interact() {
     if(!uMinoMode && player.gridX === mazeCenter.x && player.gridY === mazeCenter.y) { alert("YOU ESCAPED!"); location.reload(); return; }
     
-    // Sjekk Søppelkasser (U-Mino)
     if(uMinoMode) {
+        if(activeMinigame) return; 
         trashCans.forEach(tc => {
             if(tc.x === player.gridX && tc.y === player.gridY) {
-                humans.forEach(h => { if(h.isHidden && h.gridX === tc.x && h.gridY === tc.y) h.isDead = true; });
+                let h = humans.find(hu => hu.isHidden && hu.gridX === tc.x && hu.gridY === tc.y);
+                if(h) {
+                    activeMinigame = { target: h, progress: 0.5, lastUpdate: performance.now() };
+                }
             }
         });
+    } else {
+        let onTrash = trashCans.some(tc => tc.x === player.gridX && tc.y === player.gridY);
+        if(onTrash) {
+            player.isHidden = !player.isHidden;
+        }
     }
     
-    // Plukk opp gjenstander
     let idx = items.findIndex(it => it.gridX === player.gridX && it.gridY === player.gridY);
     if(idx !== -1) {
         let it = items[idx];
@@ -158,32 +176,82 @@ function update(now) {
     if(!isRunning) return;
     if(itemMadness && now - lastItemSpawn > 1000) { for(let i=0; i<5; i++) spawnItem(grid.length); lastItemSpawn = now; }
 
+    if(activeMinigame) {
+        activeMinigame.progress += (now - activeMinigame.lastUpdate) / 3000;
+        activeMinigame.lastUpdate = now;
+        if(activeMinigame.progress >= 1) {
+            activeMinigame.target.isHidden = false;
+            activeMinigame = null;
+        }
+    }
+
+    // Player Sniff Ability (U-Mino)
+    if(uMinoMode && window.keys['shift'] && now - player.lastSniff > 25000 && !player.isSniffStunned && !player.isSniffActive) {
+        player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
+    }
+    if(player.isSniffStunned) {
+        if(now - player.sniffStunTimer > 2500) {
+            player.isSniffStunned = false; player.isSniffActive = true; player.sniffActiveTimer = now;
+            let valid = humans.filter(h => !h.isDead && !h.isHidden);
+            if(valid.length > 0) player.sniffTarget = valid[Math.floor(Math.random()*valid.length)];
+            else player.sniffTarget = null;
+        }
+    } else if(player.isSniffActive) {
+        if(now - player.sniffActiveTimer > 8500) {
+            player.isSniffActive = false; player.sniffTarget = null;
+        }
+    }
+
     // MINOTAUR AI
     monsters.forEach(m => {
         let dist = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
-        if(!uMinoMode && dist < 25) { isRunning = false; document.getElementById('jumpscare').style.display = 'flex'; setTimeout(() => location.reload(), 2000); return; }
-        if(!uMinoMode && dist < 200) { m.isChasing = true; } else { m.isChasing = false; }
+        if(!uMinoMode && !player.isHidden && dist < 25) { isRunning = false; document.getElementById('jumpscare').style.display = 'flex'; setTimeout(() => location.reload(), 2000); return; }
+        if(!uMinoMode && dist < 200 && !player.isHidden) { m.isChasing = true; } else { m.isChasing = false; }
         
-        if(!m.isMoving) {
-            let nx, ny; 
-            if(m.isChasing) { 
-                let p = getPath(m.gridX, m.gridY, player.gridX, player.gridY); 
-                if(p.length > 0) { nx = p[0].x; ny = p[0].y; } 
-            } else { 
-                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); 
-                let f=ds[Math.floor(Math.random()*ds.length)]; 
-                if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} 
+        // AI Sniff Ability
+        if(now - m.lastSniff > 25000 && !m.isSniffStunned && !m.isSniffActive && Math.random() < 0.05) {
+            m.isSniffStunned = true; m.sniffStunTimer = now; m.lastSniff = now;
+        }
+
+        if(m.isSniffStunned) {
+            m.isMoving = false;
+            if(now - m.sniffStunTimer > 2500) {
+                m.isSniffStunned = false; m.isSniffActive = true; m.sniffActiveTimer = now;
+                if(player.isHidden) m.sniffTarget = null;
+                else m.sniffTarget = player;
             }
-            if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
-        } else {
-            let speed = (baseHumanSpeed / difficultyMult); if(m.isChasing) speed /= 1.5;
-            let t=Math.min((now-m.moveStart)/speed, 1); 
-            m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
-            if(t===1){m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false;}
+        } else if(m.isSniffActive) {
+            if(now - m.sniffActiveTimer > 8500) {
+                m.isSniffActive = false; m.sniffTarget = null;
+            }
+        }
+
+        if(!m.isSniffStunned) {
+            if(!m.isMoving) {
+                let nx, ny; 
+                if(m.isSniffActive && m.sniffTarget) {
+                    let p = getPath(m.gridX, m.gridY, m.sniffTarget.gridX, m.sniffTarget.gridY);
+                    if(p.length > 0) { nx = p[0].x; ny = p[0].y; }
+                } else if(m.isChasing) { 
+                    let p = getPath(m.gridX, m.gridY, player.gridX, player.gridY); 
+                    if(p.length > 0) { nx = p[0].x; ny = p[0].y; } 
+                } else { 
+                    let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); 
+                    let f=ds[Math.floor(Math.random()*ds.length)]; 
+                    if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];} 
+                }
+                if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
+            } else {
+                let speed = (baseHumanSpeed / difficultyMult); 
+                if(m.isSniffActive) speed /= 2.5; else if(m.isChasing) speed /= 1.5;
+                let t=Math.min((now-m.moveStart)/speed, 1); 
+                m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
+                if(t===1){m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false;}
+            }
         }
     });
 
-    // HUMAN AI (U-MINO - Nå med fix for hjørne-bug og søppelkasser)
+    // HUMAN AI (U-MINO Escape Fix)
     humans.forEach(h => {
         if(h.isDead) return;
         if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { isRunning=false; alert("A HUMAN ESCAPED! YOU LOSE."); location.reload(); }
@@ -193,12 +261,10 @@ function update(now) {
             let onTrash = trashCans.some(tc => tc.x === h.gridX && tc.y === h.gridY);
 
             if(distToMino < 8 && onTrash) {
-                h.isHidden = true; // Gjemmer seg i søppelkassen
+                h.isHidden = true; 
             } else {
                 h.isHidden = false;
-                
                 if(distToMino < 6) {
-                    // Panikk! Løp vekk.
                     let dirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
                     dirs.sort((a,b) => Math.hypot(h.gridX+b[0]-player.gridX, h.gridY+b[1]-player.gridY) - Math.hypot(h.gridX+a[0]-player.gridX, h.gridY+a[1]-player.gridY));
                     if(dirs[0]) {
@@ -206,33 +272,29 @@ function update(now) {
                         h.isMoving = true; h.moveStart = now; h.path = [];
                     }
                 } else if (distToMino < 12) {
-                    // Minotaur er nær, søk mot nærmeste søppelkasse for å gjemme seg
                     let nearbyTrash = trashCans.find(tc => Math.hypot(tc.x - h.gridX, tc.y - h.gridY) < 5);
                     if (nearbyTrash) {
                         h.path = getPath(h.gridX, h.gridY, nearbyTrash.x, nearbyTrash.y);
                         let next = h.path.shift();
                         if(next) { h.targetX = next.x; h.targetY = next.y; h.isMoving = true; h.moveStart = now; }
                     } else {
-                        // Ingen søppelkasse nær, løp mot midten
                         if(h.path.length === 0) h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
                         let next = h.path.shift();
                         if(next) { h.targetX = next.x; h.targetY = next.y; h.isMoving = true; h.moveStart = now; }
                     }
                 } else {
-                    // Vanlig utforsking mot midten
+                    // ESCAPE LOGIC
                     if(h.path.length === 0) h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
-                    
-                    if(h.path.length === 0) {
-                        // STUCK FIX: Hvis veien til midten er blokkert, utforsk tilfeldig slik at de ikke sitter fast i et hjørne!
+                    let next = h.path.shift();
+                    if(next) { 
+                        h.targetX = next.x; h.targetY = next.y; h.isMoving = true; h.moveStart = now; 
+                    } else {
                         let ds = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
                         if(ds.length > 0) {
                             let f = ds[Math.floor(Math.random()*ds.length)];
                             h.targetX = h.gridX + f[0]; h.targetY = h.gridY + f[1];
                             h.isMoving = true; h.moveStart = now;
                         }
-                    } else {
-                        let next = h.path.shift();
-                        if(next) { h.targetX = next.x; h.targetY = next.y; h.isMoving = true; h.moveStart = now; }
                     }
                 }
             }
@@ -246,14 +308,31 @@ function update(now) {
     });
 
     // PLAYER MOVEMENT
-    if(!player.isMoving) {
+    if(activeMinigame || player.isSniffStunned || (!uMinoMode && player.isHidden)) {
+        // block movement
+    } else if(!player.isMoving) {
         let dx=0, dy=0; if(window.keys?.w) dy=-1; else if(window.keys?.s) dy=1; else if(window.keys?.a) dx=-1; else if(window.keys?.d) dx=1;
         if(dx||dy){ let nx=player.gridX+dx, ny=player.gridY+dy; if(grid[ny]&&grid[ny][nx]===0){player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny;} }
     } else {
-        let t=Math.min((now-player.moveStart)/(uMinoMode ? baseHumanSpeed*0.7 : baseHumanSpeed), 1);
+        let speed = uMinoMode ? baseHumanSpeed*0.7 : baseHumanSpeed;
+        if(uMinoMode && player.isSniffActive) speed /= 2.5; 
+        let t=Math.min((now-player.moveStart)/speed, 1);
         player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
         if(t===1){ player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false; }
     }
+}
+
+function drawSpinningArrows(x, y, now) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((now % 1000) / 1000 * Math.PI * 2);
+    ctx.fillStyle = "red";
+    for(let i=0; i<4; i++) {
+        ctx.rotate(Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(18, -6); ctx.lineTo(28, 0); ctx.lineTo(18, 6); ctx.fill();
+    }
+    ctx.restore();
 }
 
 function loop(now) {
@@ -263,43 +342,40 @@ function loop(now) {
     
     ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
     
-    // Vegger
     for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) { ctx.fillStyle="#B3B3B3"; ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize); }
     
-    // Søppelkasser
     trashCans.forEach(tc => {
         ctx.fillStyle = "#222"; ctx.fillRect(tc.x*tileSize+ox+5, tc.y*tileSize+oy+5, tileSize-10, tileSize-10);
         ctx.fillStyle = "#111"; ctx.fillRect(tc.x*tileSize+ox+10, tc.y*tileSize+oy+10, tileSize-20, tileSize-20);
     });
 
-    // Gjenstander
     items.forEach(it => { ctx.fillStyle = it.type === 'gold' ? "#ffd700" : "#ff8c00"; ctx.beginPath(); ctx.arc(it.gridX*tileSize+ox+20, it.gridY*tileSize+oy+20, 8, 0, Math.PI*2); ctx.fill(); });
     
-    // Utgang
     ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+12, mazeCenter.y*tileSize+oy+12, 16, 16);
     
-    // Mennesker
     humans.forEach(h => { if(!h.isDead && !h.isHidden) { ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill(); } });
     
-    // Minotaur (NPC)
-    monsters.forEach(m => { ctx.fillStyle = m.isChasing ? "#f00" : "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
+    monsters.forEach(m => { 
+        ctx.fillStyle = m.isSniffStunned ? "#500" : (m.isChasing ? "#f00" : "#800"); 
+        ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); 
+        if(m.isSniffActive) drawSpinningArrows(m.renderX+ox+20, m.renderY+oy+20, now);
+    });
 
-    // Spiller
-    ctx.fillStyle = uMinoMode ? "#f00" : "#fff";
-    ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, uMinoMode ? 16 : 11, 0, Math.PI*2); ctx.fill();
-    
-    // Sniff Ability Overlay (Synlig gjennom mørket)
-    if(uMinoMode && window.keys['shift']) {
-        humans.forEach(h => {
-            if(!h.isDead) {
-                ctx.strokeStyle = "rgba(255, 50, 50, 0.5)";
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(canvas.width/2, canvas.height/2);
-                ctx.lineTo(h.renderX+ox+20, h.renderY+oy+20);
-                ctx.stroke();
-            }
-        });
+    if(!uMinoMode && player.isHidden) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 11, 0, Math.PI*2); ctx.fill();
+    } else {
+        ctx.fillStyle = uMinoMode ? (player.isSniffStunned ? "#500" : "#f00") : "#fff";
+        ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, uMinoMode ? 16 : 11, 0, Math.PI*2); ctx.fill();
+    }
+
+    if(uMinoMode && player.isSniffActive) {
+        drawSpinningArrows(canvas.width/2, canvas.height/2, now);
+        if(player.sniffTarget) {
+            ctx.strokeStyle = "rgba(255, 50, 50, 0.8)"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height/2);
+            ctx.lineTo(player.sniffTarget.renderX+ox+20, player.sniffTarget.renderY+oy+20); ctx.stroke();
+        }
     }
 
     if(!fullBright) {
@@ -315,11 +391,43 @@ function loop(now) {
         });
         ctx.drawImage(t,0,0);
     }
+
+    // Minigame UI Overlay
+    if(activeMinigame) {
+        let bw = 300, bh = 30;
+        let bx = canvas.width/2 - bw/2, by = canvas.height/2 + 80;
+        ctx.fillStyle = "#111"; ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = activeMinigame.progress > 0.8 ? "#f00" : "#0f0";
+        ctx.fillRect(bx, by, bw * activeMinigame.progress, bh);
+        ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, bh);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 18px Courier"; ctx.textAlign = "center";
+        ctx.fillText("SPAM SPACEBAR!", canvas.width/2, by - 10);
+    }
+
     requestAnimationFrame(loop);
 }
 window.keys = {};
-window.onkeydown=e=>{ let k=e.key.toLowerCase(); if(k==='e') interact(); window.keys[k]=true; };
-window.onkeyup=e=>window.keys[e.key.toLowerCase()]=false;
+window.onkeydown=e=>{ 
+    let k=e.key.toLowerCase(); 
+    if(e.code==='Space') { 
+        e.preventDefault(); 
+        k='space'; 
+        if(activeMinigame) {
+            activeMinigame.progress -= 0.1;
+            if(activeMinigame.progress <= 0) {
+                activeMinigame.target.isDead = true;
+                activeMinigame = null;
+            }
+        }
+    }
+    if(k==='e') interact(); 
+    window.keys[k]=true; 
+};
+window.onkeyup=e=>{
+    let k=e.key.toLowerCase();
+    if(e.code==='Space') k='space';
+    window.keys[k]=false;
+}
 function init(){}
 </script>
 </body>
