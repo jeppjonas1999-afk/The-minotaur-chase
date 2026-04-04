@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.9.2 PEEK & RESET</title>
+    <title>Minotaur: The Vault - v.9.3 PERFECT PEEK</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -62,7 +62,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.2 - PEEK & RESET</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.3 - PERFECT PEEK</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -194,7 +194,8 @@ function start() {
             humans.push({
                 gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, 
                 isMoving:false, isDead:false, isHidden:false, path:[], slowTimer: 0, isBleeding: false,
-                fleeMode: false, fleeEndTime: 0, peekMode: false, peekStep: 0, peekTimer: 0, peekDir: null, lastSeenPlayer: null
+                fleeMode: false, fleeEndTime: 0, peekMode: false, peekStep: 'none', peekTimer: 0, peekDir: null, lastSeenPlayer: null,
+                cornerTile: null, leanOffsetX: 0, leanOffsetY: 0
             });
         }
     } else {
@@ -380,7 +381,7 @@ function update(now) {
 
         let seeMino = hasLOS(h.gridX, h.gridY, player.gridX, player.gridY);
 
-        if(h.peekMode && h.peekStep === 1) {
+        if(h.peekMode && (h.peekStep === 'leaning' || h.peekStep === 'observing')) {
             let peekX = h.gridX + h.peekDir.x;
             let peekY = h.gridY + h.peekDir.y;
             let dx = player.gridX - peekX;
@@ -396,17 +397,22 @@ function update(now) {
             }
         }
 
-        if(!h.isHidden && Math.hypot(h.renderX - player.renderX, h.renderY - player.renderY) < 20) {
+        if(!h.isHidden && Math.hypot((h.renderX + (h.leanOffsetX || 0)) - player.renderX, (h.renderY + (h.leanOffsetY || 0)) - player.renderY) < 20) {
             h.isDead = true;
             seeMino = false;
         }
 
         if(seeMino) {
-            h.lastSeenPlayer = {x: player.gridX, y: player.gridY};
+            if(!h.fleeMode) {
+                h.lastSeenPlayer = {x: player.gridX, y: player.gridY};
+                h.cornerTile = {x: h.gridX, y: h.gridY};
+            }
             h.fleeMode = true;
             h.fleeEndTime = now + 1500;
             h.peekMode = false;
-            h.peekStep = 0;
+            h.peekStep = 'none';
+            h.leanOffsetX = 0;
+            h.leanOffsetY = 0;
         }
 
         if(!h.isMoving && !h.isDead) {
@@ -431,32 +437,50 @@ function update(now) {
                     if(!seeMino && now >= h.fleeEndTime) {
                         h.fleeMode = false;
                         h.peekMode = true;
-                        h.peekStep = 0;
+                        h.peekStep = 'returning';
                     }
                 } else if(h.peekMode) {
-                    if(h.peekStep === 0) {
-                        let p = getPath(h.gridX, h.gridY, h.lastSeenPlayer.x, h.lastSeenPlayer.y);
+                    if(h.peekStep === 'returning') {
+                        let p = getPath(h.gridX, h.gridY, h.cornerTile.x, h.cornerTile.y);
                         if(p.length > 1) {
                             h.targetX = p[0].x; h.targetY = p[0].y;
                             h.isMoving = true; h.moveStart = now;
                         } else if(p.length === 1 || p.length === 0) {
-                            h.peekStep = 1;
+                            h.peekStep = 'leaning';
                             h.peekTimer = now;
-                            let dx = h.lastSeenPlayer.x - h.gridX;
-                            let dy = h.lastSeenPlayer.y - h.gridY;
-                            h.peekDir = {x: dx===0?0:dx/Math.abs(dx), y: dy===0?0:dy/Math.abs(dy)};
-                            if(h.peekDir.x===0 && h.peekDir.y===0) h.peekMode = false;
+                            let dx = h.cornerTile.x - h.gridX;
+                            let dy = h.cornerTile.y - h.gridY;
+                            if(dx===0 && dy===0) { h.peekMode = false; } 
+                            else { h.peekDir = {x: dx, y: dy}; }
                         } else {
                             h.peekMode = false;
                         }
-                    } else if(h.peekStep === 1) {
-                        if(now - h.peekTimer >= 500) {
-                            h.peekStep = 2;
+                    } else if(h.peekStep === 'leaning') {
+                        let elapsed = now - h.peekTimer;
+                        if(elapsed >= 500) {
+                            h.peekStep = 'observing';
+                            h.peekTimer = now;
+                            h.leanOffsetX = h.peekDir.x * (tileSize * 0.5);
+                            h.leanOffsetY = h.peekDir.y * (tileSize * 0.5);
+                        } else {
+                            let t = elapsed / 500;
+                            h.leanOffsetX = h.peekDir.x * (tileSize * 0.5 * t);
+                            h.leanOffsetY = h.peekDir.y * (tileSize * 0.5 * t);
                         }
-                    } else if(h.peekStep === 2) {
-                        h.peekMode = false;
-                        h.lastSeenPlayer = null;
-                        h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
+                    } else if(h.peekStep === 'observing') {
+                        h.leanOffsetX = h.peekDir.x * (tileSize * 0.5);
+                        h.leanOffsetY = h.peekDir.y * (tileSize * 0.5);
+                        let elapsed = now - h.peekTimer;
+                        if(elapsed >= 1500) {
+                            h.peekStep = 'finished';
+                            h.peekMode = false;
+                            h.cornerTile = null;
+                            h.leanOffsetX = 0;
+                            h.leanOffsetY = 0;
+                            h.targetX = h.gridX + h.peekDir.x;
+                            h.targetY = h.gridY + h.peekDir.y;
+                            h.isMoving = true; h.moveStart = now;
+                        }
                     }
                 } else {
                     if(h.path.length === 0 || (h.path.length > 0 && (h.path[h.path.length-1].x !== mazeCenter.x || h.path[h.path.length-1].y !== mazeCenter.y))) {
@@ -560,12 +584,8 @@ function loop(now) {
     
     humans.forEach(h => { 
         if(!h.isDead && !h.isHidden) { 
-            let drawX = h.renderX;
-            let drawY = h.renderY;
-            if(h.peekMode && h.peekStep === 1 && h.peekDir) {
-                drawX += h.peekDir.x * (tileSize * 0.5);
-                drawY += h.peekDir.y * (tileSize * 0.5);
-            }
+            let drawX = h.renderX + (h.leanOffsetX || 0);
+            let drawY = h.renderY + (h.leanOffsetY || 0);
             ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(drawX+ox+20, drawY+oy+20, 11, 0, Math.PI*2); ctx.fill(); 
         } 
     });
