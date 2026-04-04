@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.9.1 ESCAPE & REST</title>
+    <title>Minotaur: The Vault - v.9.2 PEEK & RESET</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -62,7 +62,7 @@
         <div id="menu-wrapper">
             <div class="main-box">
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.1 - ESCAPE & REST</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.2 - PEEK & RESET</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -191,7 +191,11 @@ function start() {
         player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
         for(let i=0; i<4; i++) {
             let hx, hy; do { hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim); } while(grid[hy][hx]===1 || Math.hypot(hx-mazeCenter.x, hy-mazeCenter.y) < 5);
-            humans.push({gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, isMoving:false, isDead:false, isHidden:false, path:[], slowTimer: 0, isBleeding: false});
+            humans.push({
+                gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, 
+                isMoving:false, isDead:false, isHidden:false, path:[], slowTimer: 0, isBleeding: false,
+                fleeMode: false, fleeEndTime: 0, peekMode: false, peekStep: 0, peekTimer: 0, peekDir: null, lastSeenPlayer: null
+            });
         }
     } else {
         player.gridX=1; player.gridY=dim-2;
@@ -211,6 +215,16 @@ function start() {
 
 function update(now) {
     if(!isRunning) return;
+
+    if(winCinematic && winCinematic.finished) {
+        if(now - winCinematic.endTime > 3000) {
+            isRunning = false;
+            document.getElementById('win-screen').style.display = 'none';
+            document.getElementById('menu').style.display = 'flex';
+            winCinematic = null;
+            return;
+        }
+    }
 
     if(cinematic) {
         let elapsed = now - cinematic.start;
@@ -251,7 +265,6 @@ function update(now) {
 
     let gameTime = now - startTime;
 
-    // WIN CINEMATIC LOGIC
     if(uMinoMode && humans.length > 0 && humans.every(h => h.isDead) && !winCinematic) {
         winCinematic = {
             start: now, duration: 5000,
@@ -290,6 +303,7 @@ function update(now) {
         
         if(t === 1 && !winCinematic.finished) {
             winCinematic.finished = true;
+            winCinematic.endTime = now;
             document.getElementById('win-screen').style.display = 'flex';
         }
     }
@@ -364,19 +378,87 @@ function update(now) {
         
         h.isBleeding = blood.some(b => b.x === h.gridX && b.y === h.gridY);
 
-        if(!h.isMoving) {
-            let seeMino = hasLOS(h.gridX, h.gridY, player.gridX, player.gridY);
+        let seeMino = hasLOS(h.gridX, h.gridY, player.gridX, player.gridY);
+
+        if(h.peekMode && h.peekStep === 1) {
+            let peekX = h.gridX + h.peekDir.x;
+            let peekY = h.gridY + h.peekDir.y;
+            let dx = player.gridX - peekX;
+            let dy = player.gridY - peekY;
+            let dist = Math.abs(dx) + Math.abs(dy);
+            
+            let isBehind = false;
+            if (h.peekDir.x !== 0 && Math.sign(dx) === -Math.sign(h.peekDir.x)) isBehind = true;
+            if (h.peekDir.y !== 0 && Math.sign(dy) === -Math.sign(h.peekDir.y)) isBehind = true;
+
+            if (!isBehind && dist <= 3 && hasLOS(peekX, peekY, player.gridX, player.gridY)) {
+                seeMino = true;
+            }
+        }
+
+        if(!h.isHidden && Math.hypot(h.renderX - player.renderX, h.renderY - player.renderY) < 20) {
+            h.isDead = true;
+            seeMino = false;
+        }
+
+        if(seeMino) {
+            h.lastSeenPlayer = {x: player.gridX, y: player.gridY};
+            h.fleeMode = true;
+            h.fleeEndTime = now + 1500;
+            h.peekMode = false;
+            h.peekStep = 0;
+        }
+
+        if(!h.isMoving && !h.isDead) {
             let onTrash = trashCans.some(tc => tc.x === h.gridX && tc.y === h.gridY);
 
-            if(seeMino && onTrash) { h.isHidden = true; } 
-            else {
+            if(seeMino && onTrash) { 
+                h.isHidden = true; 
+            } else {
                 h.isHidden = false;
-                if(seeMino) {
+                
+                if(h.fleeMode) {
+                    let avoidX = h.lastSeenPlayer ? h.lastSeenPlayer.x : player.gridX;
+                    let avoidY = h.lastSeenPlayer ? h.lastSeenPlayer.y : player.gridY;
                     let dirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
-                    dirs.sort((a,b) => Math.hypot(h.gridX+b[0]-player.gridX, h.gridY+b[1]-player.gridY) - Math.hypot(h.gridX+a[0]-player.gridX, h.gridY+a[1]-player.gridY));
-                    if(dirs[0]) { h.targetX = h.gridX + dirs[0][0]; h.targetY = h.gridY + dirs[0][1]; h.isMoving = true; h.moveStart = now; h.path = []; }
+                    dirs.sort((a,b) => Math.hypot(h.gridX+b[0]-avoidX, h.gridY+b[1]-avoidY) - Math.hypot(h.gridX+a[0]-avoidX, h.gridY+a[1]-avoidY));
+                    
+                    if(dirs[0]) {
+                        h.targetX = h.gridX + dirs[0][0]; h.targetY = h.gridY + dirs[0][1]; 
+                        h.isMoving = true; h.moveStart = now; h.path = [];
+                    }
+
+                    if(!seeMino && now >= h.fleeEndTime) {
+                        h.fleeMode = false;
+                        h.peekMode = true;
+                        h.peekStep = 0;
+                    }
+                } else if(h.peekMode) {
+                    if(h.peekStep === 0) {
+                        let p = getPath(h.gridX, h.gridY, h.lastSeenPlayer.x, h.lastSeenPlayer.y);
+                        if(p.length > 1) {
+                            h.targetX = p[0].x; h.targetY = p[0].y;
+                            h.isMoving = true; h.moveStart = now;
+                        } else if(p.length === 1 || p.length === 0) {
+                            h.peekStep = 1;
+                            h.peekTimer = now;
+                            let dx = h.lastSeenPlayer.x - h.gridX;
+                            let dy = h.lastSeenPlayer.y - h.gridY;
+                            h.peekDir = {x: dx===0?0:dx/Math.abs(dx), y: dy===0?0:dy/Math.abs(dy)};
+                            if(h.peekDir.x===0 && h.peekDir.y===0) h.peekMode = false;
+                        } else {
+                            h.peekMode = false;
+                        }
+                    } else if(h.peekStep === 1) {
+                        if(now - h.peekTimer >= 500) {
+                            h.peekStep = 2;
+                        }
+                    } else if(h.peekStep === 2) {
+                        h.peekMode = false;
+                        h.lastSeenPlayer = null;
+                        h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
+                    }
                 } else {
-                    // Alltid prøv å escape til midten
                     if(h.path.length === 0 || (h.path.length > 0 && (h.path[h.path.length-1].x !== mazeCenter.x || h.path[h.path.length-1].y !== mazeCenter.y))) {
                         h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
                     }
@@ -388,14 +470,13 @@ function update(now) {
                     }
                 }
             }
-        } else {
+        } else if(h.isMoving) {
             let speed = baseHumanSpeed / (difficultyMult * 1.1);
             if(h.slowTimer > now) speed /= 2;
             let t=Math.min((now-h.moveStart)/speed, 1);
             h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
             if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; handleTrap(h, false); }
         }
-        if(!h.isHidden && Math.hypot(h.renderX - player.renderX, h.renderY - player.renderY) < 20) h.isDead = true;
     });
 
     function handleTrap(entity, isPlayer) {
@@ -414,7 +495,6 @@ function update(now) {
         }
     }
 
-    // Bare flytt spilleren hvis vi ikke er i win-animasjonen
     if(!winCinematic && !player.isMoving && !player.isSniffStunned) {
         let dx=0, dy=0; if(window.keys?.w) dy=-1; else if(window.keys?.s) dy=1; else if(window.keys?.a) dx=-1; else if(window.keys?.d) dx=1;
         if(dx||dy){ 
@@ -477,14 +557,23 @@ function loop(now) {
     ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+12, mazeCenter.y*tileSize+oy+12, 16, 16);
 
     monsters.forEach(m => { ctx.fillStyle = m.isSniffStunned ? "#500" : "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
-    humans.forEach(h => { if(!h.isDead && !h.isHidden) { ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(h.renderX+ox+20, h.renderY+oy+20, 11, 0, Math.PI*2); ctx.fill(); } });
+    
+    humans.forEach(h => { 
+        if(!h.isDead && !h.isHidden) { 
+            let drawX = h.renderX;
+            let drawY = h.renderY;
+            if(h.peekMode && h.peekStep === 1 && h.peekDir) {
+                drawX += h.peekDir.x * (tileSize * 0.5);
+                drawY += h.peekDir.y * (tileSize * 0.5);
+            }
+            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(drawX+ox+20, drawY+oy+20, 11, 0, Math.PI*2); ctx.fill(); 
+        } 
+    });
 
-    // TEGN MINOTAUR (Spiller)
     if(!uMinoMode && player.isHidden) { 
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 11, 0, Math.PI*2); ctx.fill(); 
     } else { 
         if(winCinematic && winCinematic.finished) {
-            // Minotauren hviler (flatere og mørkere)
             ctx.fillStyle = "#400"; ctx.beginPath(); ctx.ellipse(canvas.width/2, canvas.height/2 + 5, 18, 10, 0, 0, Math.PI*2); ctx.fill();
         } else {
             ctx.fillStyle = uMinoMode ? (player.isSniffStunned ? "#500" : "#f00") : "#fff"; 
