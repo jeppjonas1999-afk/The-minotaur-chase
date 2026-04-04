@@ -2,14 +2,43 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.9.3 PERFECT PEEK</title>
+    <title>Minotaur: The Vault - v.9.4 SETTINGS & MOBILE</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; }
         #menu-wrapper { display: flex; position: relative; align-items: stretch; }
-        .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; }
+        .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; position: relative; }
         
+        /* NYE SETTINGS STYLES */
+        #settings-btn { position: absolute; top: 15px; left: 15px; font-size: 24px; cursor: pointer; transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 10; }
+        #settings-btn.open { transform: rotate(540deg); }
+        #settings-panel { 
+            position: absolute; top: 50px; left: 15px; background: #222; border: 1px solid #444; border-radius: 5px;
+            padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out, padding 0.5s ease-out;
+            width: 200px; text-align: left; z-index: 9; box-sizing: border-box;
+        }
+        #settings-panel.open { max-height: 150px; padding: 15px; }
+        .setting-row { font-size: 12px; margin-bottom: 15px; color: #ccc; }
+        .setting-row label { display: flex; align-items: center; cursor: pointer; }
+        .setting-row input[type="range"] { width: 100%; margin-top: 5px; }
+
+        /* NYE MOBILKONTROLLER STYLES */
+        #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 90; display: none; user-select: none; touch-action: none; -webkit-user-select: none; }
+        .dpad { position: absolute; bottom: 40px; left: 40px; display: grid; grid-template-columns: 60px 60px 60px; grid-template-rows: 60px 60px 60px; gap: 10px; pointer-events: auto; }
+        .dbtn { background: rgba(40,40,40,0.8); border: 2px solid #555; border-radius: 10px; color: white; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .dbtn:active { background: rgba(80,80,80,0.9); }
+        #btn-w { grid-column: 2; grid-row: 1; }
+        #btn-a { grid-column: 1; grid-row: 2; }
+        #btn-s { grid-column: 2; grid-row: 2; }
+        #btn-d { grid-column: 3; grid-row: 2; }
+
+        .action-area { position: absolute; bottom: 40px; right: 40px; pointer-events: auto; display: flex; justify-content: center; align-items: center; width: 100px; height: 100px; }
+        #btn-interact-normal { width: 80px; height: 80px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        #btn-interact-normal:active { background: rgba(80,80,80,0.9); }
+        #umino-btn { width: 80px; height: 80px; border-radius: 50%; background: darkred; border: 3px solid #300; cursor: pointer; position: relative; overflow: hidden; display: none; justify-content: center; align-items: center; }
+        #umino-cooldown { position: absolute; inset: 0; background: conic-gradient(red 0%, transparent 0%); transform: scaleX(-1); pointer-events: none; }
+
         #modifiers-wrapper { width: 0px; overflow: hidden; transition: width 1.75s cubic-bezier(0.68, -0.6, 0.32, 1.6); position: relative; }
         #modifiers-wrapper.open { width: 450px; }
         #modifiers-panel { 
@@ -58,11 +87,37 @@
         <h1 style="font-size: 50px; margin: 0; letter-spacing: 5px;">minotauren er mettet for nå...</h1>
     </div>
 
+    <div id="mobile-controls">
+        <div class="dpad">
+            <div id="btn-w" class="dbtn">↑</div>
+            <div id="btn-a" class="dbtn">←</div>
+            <div id="btn-s" class="dbtn">↓</div>
+            <div id="btn-d" class="dbtn">→</div>
+        </div>
+        <div class="action-area">
+            <div id="btn-interact-normal">ACT</div>
+            <div id="umino-btn">
+                <div id="umino-cooldown"></div>
+            </div>
+        </div>
+    </div>
+
     <div id="menu" class="overlay">
         <div id="menu-wrapper">
             <div class="main-box">
+                <div id="settings-btn" onclick="toggleSettings()">⚙️</div>
+                <div id="settings-panel">
+                    <div class="setting-row">
+                        <label><input type="checkbox" id="mobile-cb" onchange="useMobileControls=this.checked" style="margin-right:8px;"> Mobile Controls</label>
+                    </div>
+                    <div class="setting-row" style="margin-bottom:0;">
+                        <span style="display:block; margin-bottom:5px;">Brightness: <span id="bright-val">50</span></span>
+                        <input type="range" id="bright-slider" min="0" max="100" value="50" oninput="gameBrightness=this.value; document.getElementById('bright-val').innerText=this.value;">
+                    </div>
+                </div>
+
                 <h1 style="color:#800; letter-spacing:8px; margin:0;">MINOTAUR</h1>
-                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.3 - PERFECT PEEK</p>
+                <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.4 - SETTINGS & MOBILE</p>
                 <span class="menu-label">Maze Size</span>
                 <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                 <span class="menu-label">Difficulty</span>
@@ -73,7 +128,7 @@
             <div id="modifiers-wrapper">
                 <div id="modifiers-panel">
                     <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
-                    <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightness(false)">OFF</button><button id="b1" onclick="setBrightness(true)">ON</button></div></div>
+                    <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightnessModifier(false)">OFF</button><button id="b1" onclick="setBrightnessModifier(true)">ON</button></div></div>
                     <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
                     <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
                     <div class="mod-slot mod-active"><div class="mod-img" style="background: #800; color:#fff;">U-MINO</div><div class="mod-btns"><button id="u0" class="active" onclick="setUMino(false)">OFF</button><button id="u1" onclick="setUMino(true)">ON</button></div></div>
@@ -92,6 +147,7 @@
 let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, grid=[], items=[], trashCans=[], humans=[], monsters=[], traps=[];
 let startTime = 0, lastItemSpawn = 0, visionBonus = 0, activeOranges = [];
 let activeMinigame = null, cinematic = null, winCinematic = null, blood = [];
+let useMobileControls = false, gameBrightness = 50;
 let player = { 
     gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
     isHidden: false, lastSniff: 0, isSniffStunned: false, isSniffActive: false, 
@@ -99,6 +155,18 @@ let player = {
 };
 let difficultyMult=1.2, baseHumanSpeed=320, tileSize=40, mazeCenter={x:0,y:0};
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
+
+function toggleSettings() {
+    let gear = document.getElementById('settings-btn');
+    let panel = document.getElementById('settings-panel');
+    if(gear.classList.contains('open')) {
+        gear.classList.remove('open');
+        panel.classList.remove('open');
+    } else {
+        gear.classList.add('open');
+        panel.classList.add('open');
+    }
+}
 
 function togglePanel() { 
     const wrapper = document.getElementById('modifiers-wrapper');
@@ -108,10 +176,31 @@ function togglePanel() {
 }
 
 function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
-function setBrightness(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
+function setBrightnessModifier(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
 function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
 function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
 function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
+
+function simTouch(id, key) {
+    let el = document.getElementById(id);
+    const down = (e) => { e.preventDefault(); window.keys[key] = true; };
+    const up = (e) => { e.preventDefault(); window.keys[key] = false; };
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+    el.addEventListener('touchstart', down, {passive: false});
+    el.addEventListener('touchend', up, {passive: false});
+}
+
+function triggerMobileSniff() {
+    if(uMinoMode && isRunning && !player.isSniffStunned && !player.isSniffActive && !winCinematic) {
+        let now = performance.now();
+        let gameTime = now - startTime;
+        if(gameTime > 30000 && now - player.lastSniff > 25000) {
+            player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
+        }
+    }
+}
 
 function hasLOS(x1, y1, x2, y2) {
     if (x1 !== x2 && y1 !== y2) return false;
@@ -211,6 +300,20 @@ function start() {
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
     document.getElementById("menu").style.display="none"; 
     document.getElementById("win-screen").style.display="none"; 
+
+    if(useMobileControls) {
+        document.getElementById('mobile-controls').style.display = 'block';
+        if(uMinoMode) {
+            document.getElementById('btn-interact-normal').style.display = 'none';
+            document.getElementById('umino-btn').style.display = 'flex';
+        } else {
+            document.getElementById('btn-interact-normal').style.display = 'flex';
+            document.getElementById('umino-btn').style.display = 'none';
+        }
+    } else {
+        document.getElementById('mobile-controls').style.display = 'none';
+    }
+
     isRunning=true; lastItemSpawn=startTime; requestAnimationFrame(loop);
 }
 
@@ -222,6 +325,7 @@ function update(now) {
             isRunning = false;
             document.getElementById('win-screen').style.display = 'none';
             document.getElementById('menu').style.display = 'flex';
+            document.getElementById('mobile-controls').style.display = 'none';
             winCinematic = null;
             return;
         }
@@ -266,6 +370,26 @@ function update(now) {
 
     let gameTime = now - startTime;
 
+    if(useMobileControls && uMinoMode) {
+        let elapsed = now - player.lastSniff;
+        let totalWait = 25000;
+        let currentWait = elapsed;
+        if (gameTime < 30000 && player.lastSniff === startTime + 30000 - 25000) {
+            totalWait = 30000; currentWait = gameTime;
+        }
+        let pct = Math.min((currentWait / totalWait) * 100, 100);
+        let btn = document.getElementById('umino-btn');
+        let cd = document.getElementById('umino-cooldown');
+        
+        if(pct < 100 || player.isSniffStunned || player.isSniffActive) {
+            btn.style.background = 'darkred';
+            cd.style.background = `conic-gradient(red ${pct}%, transparent 0)`;
+        } else {
+            btn.style.background = 'red';
+            cd.style.background = 'none';
+        }
+    }
+
     if(uMinoMode && humans.length > 0 && humans.every(h => h.isDead) && !winCinematic) {
         winCinematic = {
             start: now, duration: 5000,
@@ -305,6 +429,7 @@ function update(now) {
         if(t === 1 && !winCinematic.finished) {
             winCinematic.finished = true;
             winCinematic.endTime = now;
+            document.getElementById('mobile-controls').style.display = 'none';
             document.getElementById('win-screen').style.display = 'flex';
         }
     }
@@ -325,7 +450,7 @@ function update(now) {
 
     monsters.forEach(m => {
         let dist = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
-        if(!uMinoMode && !player.isHidden && dist < 25) { isRunning = false; document.getElementById('jumpscare').style.display = 'flex'; setTimeout(() => location.reload(), 2000); return; }
+        if(!uMinoMode && !player.isHidden && dist < 25) { isRunning = false; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('jumpscare').style.display = 'flex'; setTimeout(() => location.reload(), 2000); return; }
         
         let seePlayer = hasLOS(m.gridX, m.gridY, player.gridX, player.gridY) && !player.isHidden;
         
@@ -508,7 +633,7 @@ function update(now) {
         if(tidx !== -1) {
             let trap = traps[tidx];
             if(trap.type === 'lethal') {
-                if(isPlayer && !uMinoMode) { isRunning = false; document.getElementById('jumpscare').style.display='flex'; }
+                if(isPlayer && !uMinoMode) { isRunning = false; document.getElementById('mobile-controls').style.display = 'none'; document.getElementById('jumpscare').style.display='flex'; }
                 else if(!isPlayer) entity.isDead = true;
             } else if(trap.type === 'glue') { entity.slowTimer = now + 5000; } 
             else if(trap.type === 'noise') {
@@ -614,7 +739,10 @@ function loop(now) {
     if(!fullBright && (!cinematic || !cinematic.isSlashing) && (!winCinematic || !winCinematic.finished)) {
         let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
         tc.fillStyle="black"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
-        let vRad = (uMinoMode ? 450 : 180) + visionBonus;
+        
+        let bMult = gameBrightness / 50;
+        let vRad = ((uMinoMode ? 450 : 180) + visionBonus) * bMult;
+        
         let g=tc.createRadialGradient(t.width/2,t.height/2,0,t.width/2,t.height/2,vRad);
         g.addColorStop(0,"white"); g.addColorStop(1,"transparent"); tc.fillStyle=g; tc.beginPath(); tc.arc(t.width/2,t.height/2,vRad,0,Math.PI*2); tc.fill();
         activeOranges.forEach(o => { let lx = o.x*tileSize+ox+20, ly = o.y*tileSize+oy+20; let og=tc.createRadialGradient(lx, ly, 0, lx, ly, 100); og.addColorStop(0,"rgba(255,140,0,1)"); og.addColorStop(1,"transparent"); tc.fillStyle=og; tc.beginPath(); tc.arc(lx, ly, 100, 0, Math.PI*2); tc.fill(); });
@@ -634,7 +762,7 @@ function loop(now) {
         ctx.fillStyle = "#222"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 + 50, 300, 30);
         ctx.fillStyle = "red"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 + 50, activeMinigame.progress * 3, 30);
         ctx.fillStyle = "#fff"; ctx.font = "bold 20px Courier New"; ctx.textAlign = "center";
-        ctx.fillText("SPAM SPACEBAR!", canvas.width/2, canvas.height/2 + 45);
+        ctx.fillText("SPAM SPACEBAR / ACT!", canvas.width/2, canvas.height/2 + 45);
     }
 
     let anySniffing = (uMinoMode && player.isSniffStunned) || monsters.some(m => m.isSniffStunned);
@@ -670,6 +798,11 @@ function interact() {
         }
     }
     
+    if(activeMinigame) {
+        let onBlood = blood.some(b => b.x === activeMinigame.tc.x && b.y === activeMinigame.tc.y);
+        activeMinigame.progress += (onBlood ? 20 : 10);
+    }
+
     let idx = items.findIndex(it => it.gridX === player.gridX && it.gridY === player.gridY);
     if(idx !== -1) {
         if(items[idx].type === 'gold') visionBonus += 30;
@@ -678,7 +811,22 @@ function interact() {
     }
 }
 
-function init(){}
+function init(){
+    simTouch('btn-w', 'w');
+    simTouch('btn-a', 'a');
+    simTouch('btn-s', 's');
+    simTouch('btn-d', 'd');
+    
+    let ibtn = document.getElementById('btn-interact-normal');
+    const iact = (e) => { e.preventDefault(); interact(); };
+    ibtn.addEventListener('mousedown', iact);
+    ibtn.addEventListener('touchstart', iact, {passive: false});
+
+    let ubtn = document.getElementById('umino-btn');
+    const uact = (e) => { e.preventDefault(); triggerMobileSniff(); };
+    ubtn.addEventListener('mousedown', uact);
+    ubtn.addEventListener('touchstart', uact, {passive: false});
+}
 </script>
 </body>
 </html>
