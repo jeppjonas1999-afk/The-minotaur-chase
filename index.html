@@ -1,454 +1,1133 @@
 <!DOCTYPE html>
+
 <html lang="no">
+
 <head>
+
     <meta charset="UTF-8">
+
     <title>Minotaur: The Vault - v.9.5 MULTIPLAYER & GHOSTS</title>
+
     <style>
+
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
+
         canvas { display: block; }
+
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; flex-direction: column; }
+
         #menu-wrapper { display: flex; position: relative; align-items: stretch; flex-direction: column; }
+
         #menu-top-section { display: flex; position: relative; align-items: stretch; }
+
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; position: relative; }
+
         
+
         #settings-btn { position: absolute; top: 15px; left: 15px; font-size: 24px; cursor: pointer; transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 10; }
+
         #settings-btn.open { transform: rotate(540deg); }
+
         #settings-panel { 
+
             position: absolute; top: 50px; left: 15px; background: #222; border: 1px solid #444; border-radius: 5px;
+
             padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out, padding 0.5s ease-out;
+
             width: 200px; text-align: left; z-index: 9; box-sizing: border-box;
+
         }
+
         #settings-panel.open { max-height: 150px; padding: 15px; }
+
         .setting-row { font-size: 12px; margin-bottom: 15px; color: #ccc; }
+
         .setting-row label { display: flex; align-items: center; cursor: pointer; }
+
         .setting-row input[type="range"] { width: 100%; margin-top: 5px; }
 
+
+
+        /* NYE MULTIPLAYER STYLES */
+
         #mp-btns { position: absolute; top: 15px; left: 55px; display: flex; gap: 5px; z-index: 10; }
+
         .mp-btn { background: #333; color: white; border: 1px solid #555; padding: 5px 10px; font-family: inherit; font-size: 12px; cursor: pointer; border-radius: 3px; }
+
         .mp-btn:hover { background: #444; }
+
         
+
         #post-it { 
+
             position: fixed; top: 20px; right: 30px; background: #ffe66d; color: #000; 
+
             width: 100px; height: 100px; padding: 10px; box-sizing: border-box;
+
             transform: rotate(5deg); box-shadow: 2px 4px 6px rgba(0,0,0,0.5);
+
             display: none; flex-direction: column; justify-content: center; align-items: center;
+
             font-family: 'Comic Sans MS', cursive, sans-serif; font-weight: bold; font-size: 18px;
+
             z-index: 101; text-align: center;
+
         }
+
+        #post-it::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 20px; background: rgba(0,0,0,0.05); }
+
+
 
         #lobby-slots { display: none; gap: 10px; margin-top: 15px; justify-content: center; }
+
         .lobby-slot { width: 60px; height: 60px; border: 2px dashed #444; background: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+
         .lobby-slot.filled { border: 2px solid #555; }
+
         .slot-dot { width: 10px; height: 10px; border-radius: 50%; background: #444; margin-bottom: 5px; }
+
         .slot-dot.active { background: #0f0; box-shadow: 0 0 5px #0f0; }
+
         .slot-name { font-size: 9px; color: #ccc; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+
+
         #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; justify-content: center; align-items: center; }
+
         .modal-box { background: #111; border: 2px solid #555; padding: 20px; text-align: center; width: 250px; }
+
         .modal-box input { width: 90%; padding: 10px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; font-family: inherit; text-align: center;}
+
         .modal-box button { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; cursor: pointer; font-family: inherit; }
 
+
+
         #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 90; display: none; user-select: none; touch-action: none; -webkit-user-select: none; }
+
         .dpad { position: absolute; bottom: 40px; left: 40px; display: grid; grid-template-columns: 90px 90px 90px; grid-template-rows: 90px 90px 90px; gap: 10px; pointer-events: auto; }
+
         .dbtn { background: rgba(40,40,40,0.8); border: 2px solid #555; border-radius: 10px; color: white; font-size: 36px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+
         .dbtn:active { background: rgba(80,80,80,0.9); }
+
         #btn-w { grid-column: 2; grid-row: 1; }
+
         #btn-a { grid-column: 1; grid-row: 2; }
+
         #btn-s { grid-column: 2; grid-row: 2; }
+
         #btn-d { grid-column: 3; grid-row: 2; }
 
+
+
         .action-area { position: absolute; bottom: 80px; right: 80px; pointer-events: auto; display: flex; justify-content: center; align-items: center; width: 200px; height: 200px; }
+
         #btn-interact-normal { width: 200px; height: 200px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 36px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+
         #btn-interact-normal:active { background: rgba(80,80,80,0.9); }
+
         #umino-btn { width: 200px; height: 200px; border-radius: 50%; background: darkred; border: 4px solid #300; cursor: pointer; position: relative; overflow: hidden; display: none; justify-content: center; align-items: center; }
+
         #umino-cooldown { position: absolute; inset: 0; background: conic-gradient(red 0%, transparent 0%); transform: scaleX(-1); pointer-events: none; }
+
         
+
         #umino-act-btn { position: absolute; top: 0px; right: -60px; width: 100px; height: 100px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 24px; cursor: pointer; display: none; justify-content: center; align-items: center; }
 
+        #umino-act-btn:active { background: rgba(80,80,80,0.9); }
+
+
+
         #modifiers-wrapper { width: 0px; overflow: hidden; transition: width 1.75s cubic-bezier(0.68, -0.6, 0.32, 1.6); position: relative; }
+
         #modifiers-wrapper.open { width: 450px; }
+
         #modifiers-panel { 
+
             width: 450px; background: #0f0f0f; border: 2px solid #333; border-left: none; 
+
             padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
+
             height: 100%;
+
         }
+
         #expand-btn { 
+
             position: absolute; right: -50px; top: 50%; transform: translateY(-50%); 
+
             width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; 
+
             color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; 
+
             z-index: 10;
+
         }
+
+
 
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold;}
+
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
+
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
+
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
+
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
+
         .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 8px; }
+
         .mod-btns { display: flex; gap: 2px; width: 100%; }
+
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
+
         .mod-btns button.active { background: #800; border-color: #f00; }
 
+
+
         #jumpscare { 
+
             position: fixed; inset: 0; background: #600; color: #000; 
+
             display: none; flex-direction: column; justify-content: center; align-items: center; 
+
             z-index: 1000; animation: shake 0.1s infinite;
+
         }
+
         @keyframes shake { 0% { transform: translate(5px, 5px); } 50% { transform: translate(-5px, -5px); } 100% { transform: translate(5px, -5px); } }
+
         
+
         #win-screen { 
+
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); color: #800; 
+
             display: none; flex-direction: column; justify-content: center; align-items: center; 
+
             z-index: 1000;
+
         }
+
     </style>
+
 </head>
+
 <body onload="init()">
+
     <div id="modal-overlay">
+
         <div class="modal-box" id="nickname-modal" style="display:none;">
+
             <h3>enter nickname:</h3>
+
             <input type="text" id="nickname-input" maxlength="10">
+
             <button onclick="submitNickname()">OK</button>
+
         </div>
+
         <div class="modal-box" id="join-modal" style="display:none;">
+
             <h3>enter code:</h3>
+
             <input type="text" id="joincode-input" maxlength="6" style="text-transform: uppercase;">
+
             <button onclick="submitJoinCode()">OK</button>
+
         </div>
+
     </div>
+
+
 
     <div id="post-it">
+
         <span style="font-size:12px; font-weight:normal; color:#555;">CODE:</span>
+
         <span id="post-it-code"></span>
+
     </div>
+
+
 
     <div id="jumpscare">
+
         <h1 style="font-size: 80px; margin: 0;">CAUGHT!</h1>
+
         <p style="font-size: 20px; font-weight: bold;">the minotaur will be well fed today</p>
+
     </div>
+
+
 
     <div id="win-screen">
+
         <h1 id="win-text" style="font-size: 50px; margin: 0; letter-spacing: 5px;">minotauren er mettet for nå...</h1>
+
     </div>
+
+
 
     <div id="mobile-controls">
+
         <div class="dpad">
+
             <div id="btn-w" class="dbtn">↑</div>
+
             <div id="btn-a" class="dbtn">←</div>
+
             <div id="btn-s" class="dbtn">↓</div>
+
             <div id="btn-d" class="dbtn">→</div>
+
         </div>
+
         <div class="action-area">
+
             <div id="btn-interact-normal">ACT</div>
+
             <div id="umino-act-btn">ACT</div>
+
             <div id="umino-btn">
+
                 <div id="umino-cooldown"></div>
+
             </div>
+
         </div>
+
     </div>
+
+
 
     <div id="menu" class="overlay">
+
         <div id="menu-wrapper">
+
             <div id="menu-top-section">
+
                 <div class="main-box">
+
                     <div id="settings-btn" onclick="toggleSettings()">⚙️</div>
+
                     <div id="mp-btns">
+
                         <button class="mp-btn" id="btn-host" onclick="hostGame()">Host game</button>
+
                         <button class="mp-btn" id="btn-join" onclick="showJoin()">Join game</button>
+
                         <button class="mp-btn" id="btn-leave" style="display:none;" onclick="leaveGame()">Leave game</button>
+
                     </div>
+
                     <div id="settings-panel">
+
                         <div class="setting-row">
+
                             <label><input type="checkbox" id="mobile-cb" onchange="useMobileControls=this.checked; localStorage.setItem('minotaur_mobile', this.checked);" style="margin-right:8px;"> Mobile Controls</label>
+
                         </div>
+
                         <div class="setting-row" style="margin-bottom:0;">
+
                             <span style="display:block; margin-bottom:5px;">Brightness: <span id="bright-val">50</span></span>
+
                             <input type="range" id="bright-slider" min="0" max="100" value="50" oninput="gameBrightness=this.value; document.getElementById('bright-val').innerText=this.value;">
+
                         </div>
+
                     </div>
+
+
 
                     <h1 style="color:#800; letter-spacing:8px; margin:0; margin-top:20px;">MINOTAUR</h1>
+
                     <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.5 - MULTIPLAYER & GHOSTS</p>
+
                     <span class="menu-label">Maze Size</span>
+
                     <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
+
                     <span class="menu-label">Difficulty</span>
+
                     <select id="diff"><option value="easy">EASY (0.8x)</option><option value="hard" selected>HARD (1.2x)</option><option value="insane">INSANE (1.5x)</option></select>
+
                     <button class="start-btn" onclick="start()">START GAME</button>
+
                 </div>
+
                 
+
                 <div id="modifiers-wrapper">
+
                     <div id="modifiers-panel">
+
                         <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
+
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightnessModifier(false)">OFF</button><button id="b1" onclick="setBrightnessModifier(true)">ON</button></div></div>
+
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
+
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
+
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #800; color:#fff;">U-MINO</div><div class="mod-btns"><button id="u0" class="active" onclick="setUMino(false)">OFF</button><button id="u1" onclick="setUMino(true)">ON</button></div></div>
-                        <div class="mod-slot">?</div><div class="mod-slot">?</div><div class="mod-slot">?</div><div class="mod-slot">?</div>
+
+                        <div class="mod-slot">?</div>
+
+                        <div class="mod-slot">?</div>
+
+                        <div class="mod-slot">?</div>
+
+                        <div class="mod-slot">?</div>
+
                     </div>
+
                 </div>
+
                 <div id="expand-btn" onclick="togglePanel()">+</div>
+
             </div>
+
             
+
             <div id="lobby-slots">
+
                 <div class="lobby-slot" id="slot-0"><div class="slot-dot"></div><div class="slot-name"></div></div>
+
                 <div class="lobby-slot" id="slot-1"><div class="slot-dot"></div><div class="slot-name"></div></div>
+
                 <div class="lobby-slot" id="slot-2"><div class="slot-dot"></div><div class="slot-name"></div></div>
+
                 <div class="lobby-slot" id="slot-3"><div class="slot-dot"></div><div class="slot-name"></div></div>
+
                 <div class="lobby-slot" id="slot-4"><div class="slot-dot"></div><div class="slot-name"></div></div>
+
             </div>
+
         </div>
+
     </div>
+
     <canvas id="game"></canvas>
 
+
+
 <script>
+
 let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, grid=[], items=[], trashCans=[], humans=[], monsters=[], traps=[];
+
 let startTime = 0, lastItemSpawn = 0, visionBonus = 0, activeOranges = [];
+
 let activeMinigame = null, cinematic = null, winCinematic = null, blood = [];
+
 let useMobileControls = (localStorage.getItem('minotaur_mobile') === 'true'), gameBrightness = 50;
+
+
+
+// MULTIPLAYER STATE
+
 let mpState = { active: false, isHost: false, code: "", players: [], pendingAction: null };
 
+
+
 let player = { 
+
     gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
+
     isHidden: false, lastSniff: 0, isSniffStunned: false, isSniffActive: false, 
+
     sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null, slowTimer: 0, noiseTarget: null,
-    isGhost: false, ghostType: null
+
+    isGhost: false, ghostType: null // 'dead' or 'escaped'
+
 };
+
 let difficultyMult=1.2, baseHumanSpeed=320, tileSize=40, mazeCenter={x:0,y:0};
+
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
-window.keys = {};
+
+
 
 // --- MULTIPLAYER UI LOGIC ---
+
 function generateCode() {
+
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
     let result = '';
+
     for(let i=0; i<6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+
     return result;
+
 }
+
+
 
 function hostGame() {
+
     mpState.pendingAction = 'host';
+
     document.getElementById('modal-overlay').style.display = 'flex';
+
     document.getElementById('nickname-modal').style.display = 'block';
+
+    document.getElementById('join-modal').style.display = 'none';
+
 }
+
+
 
 function showJoin() {
+
     mpState.pendingAction = 'join';
+
     document.getElementById('modal-overlay').style.display = 'flex';
+
     document.getElementById('join-modal').style.display = 'block';
+
+    document.getElementById('nickname-modal').style.display = 'none';
+
 }
+
+
 
 function submitJoinCode() {
+
     let code = document.getElementById('joincode-input').value.toUpperCase();
+
     if(code.length > 0) {
+
         document.getElementById('join-modal').style.display = 'none';
+
         document.getElementById('nickname-modal').style.display = 'block';
+
     }
+
 }
+
+
 
 function submitNickname() {
+
     let nick = document.getElementById('nickname-input').value || "Player";
+
     document.getElementById('modal-overlay').style.display = 'none';
+
+    
+
     document.getElementById('btn-host').style.display = 'none';
+
     document.getElementById('btn-join').style.display = 'none';
+
     document.getElementById('btn-leave').style.display = 'inline-block';
+
     document.getElementById('lobby-slots').style.display = 'flex';
 
+
+
     if(mpState.pendingAction === 'host') {
-        mpState.active = true; mpState.isHost = true; mpState.code = generateCode();
+
+        mpState.active = true;
+
+        mpState.isHost = true;
+
+        mpState.code = generateCode();
+
         document.getElementById('post-it-code').innerText = mpState.code;
+
         document.getElementById('post-it').style.display = 'flex';
+
+        
+
         mpState.players = [{ name: nick, isHost: true }];
-    } else {
-        mpState.active = true; mpState.isHost = false;
+
+        updateLobbyUI();
+
+    } else if(mpState.pendingAction === 'join') {
+
+        mpState.active = true;
+
+        mpState.isHost = false;
+
         mpState.code = document.getElementById('joincode-input').value.toUpperCase();
+
         document.getElementById('post-it-code').innerText = mpState.code;
+
         document.getElementById('post-it').style.display = 'flex';
+
+        
+
+        // Disable modifiers for non-hosts
+
+        document.getElementById('modifiers-wrapper').style.pointerEvents = 'none';
+
+        document.getElementById('modifiers-wrapper').style.opacity = '0.5';
+
+
+
         mpState.players = [{ name: "HostGuy", isHost: true }, { name: nick, isHost: false }];
+
+        updateLobbyUI();
+
     }
-    updateLobbyUI();
+
 }
+
+
 
 function leaveGame() {
-    mpState.active = false; mpState.players = [];
+
+    mpState.active = false;
+
+    mpState.isHost = false;
+
+    mpState.players = [];
+
     document.getElementById('btn-host').style.display = 'inline-block';
+
     document.getElementById('btn-join').style.display = 'inline-block';
+
     document.getElementById('btn-leave').style.display = 'none';
+
     document.getElementById('post-it').style.display = 'none';
+
     document.getElementById('lobby-slots').style.display = 'none';
+
+    
+
+    document.getElementById('modifiers-wrapper').style.pointerEvents = 'auto';
+
+    document.getElementById('modifiers-wrapper').style.opacity = '1';
+
     updateLobbyUI();
+
 }
+
+
 
 function updateLobbyUI() {
+
     for(let i=0; i<5; i++) {
+
         let slot = document.getElementById('slot-'+i);
+
         let dot = slot.querySelector('.slot-dot');
+
         let name = slot.querySelector('.slot-name');
+
+        
+
         if(mpState.players[i]) {
-            slot.classList.add('filled'); dot.classList.add('active'); name.innerText = mpState.players[i].name;
+
+            slot.classList.add('filled');
+
+            dot.classList.add('active');
+
+            name.innerText = mpState.players[i].name;
+
         } else {
-            slot.classList.remove('filled'); dot.classList.remove('active'); name.innerText = "";
+
+            slot.classList.remove('filled');
+
+            dot.classList.remove('active');
+
+            name.innerText = "";
+
         }
+
     }
+
 }
 
-// --- GAME CORE ---
-function toggleSettings() {
-    document.getElementById('settings-btn').classList.toggle('open');
-    document.getElementById('settings-panel').classList.toggle('open');
+
+
+function endGhostMatch() {
+
+    isRunning = false;
+
+    document.getElementById('mobile-controls').style.display = 'none';
+
+    document.getElementById('menu').style.display = 'flex';
+
 }
+
+
+
+function becomeGhost(type) {
+
+    player.isGhost = true;
+
+    player.ghostType = type;
+
+    player.isHidden = false;
+
+    
+
+    // Hvis vi er i multiplayer og alle "ekte" spillere er ghosts (her simulert med bare lokalt)
+
+    if(mpState.active) {
+
+        // Simulert sjekk: hvis spillet er MP, sjekker vi om lokal spiller er ghost
+
+        // Ekte MP ville sjekket alle spilleres state. For nå avslutter vi når lokal dør/escaper i solo, 
+
+        // eller lar dem fly rundt litt før vi avslutter.
+
+        setTimeout(() => endGhostMatch(), 10000); // Lar dem fly rundt i 10 sekunder før lobby.
+
+    }
+
+}
+
+// ----------------------------
+
+
+
+function toggleSettings() {
+
+    let gear = document.getElementById('settings-btn');
+
+    let panel = document.getElementById('settings-panel');
+
+    if(gear.classList.contains('open')) {
+
+        gear.classList.remove('open');
+
+        panel.classList.remove('open');
+
+    } else {
+
+        gear.classList.add('open');
+
+        panel.classList.add('open');
+
+    }
+
+}
+
+
 
 function togglePanel() { 
-    if(!mpState.isHost && mpState.active) return;
+
+    if(!mpState.isHost && mpState.active) return; // Only host
+
     const wrapper = document.getElementById('modifiers-wrapper');
-    wrapper.classList.toggle('open');
-    document.getElementById('expand-btn').innerHTML = wrapper.classList.contains('open') ? '-' : '+';
+
+    const btn = document.getElementById('expand-btn');
+
+    if(wrapper.classList.contains('open')) { wrapper.classList.remove('open'); btn.innerHTML = '+'; } 
+
+    else { wrapper.classList.add('open'); btn.innerHTML = '-'; }
+
 }
+
+
 
 function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
+
 function setBrightnessModifier(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
+
 function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
+
 function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
+
 function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
 
+
+
 function simTouch(id, key) {
+
     let el = document.getElementById(id);
+
     const down = (e) => { e.preventDefault(); window.keys[key] = true; };
+
     const up = (e) => { e.preventDefault(); window.keys[key] = false; };
-    el.addEventListener('mousedown', down); el.addEventListener('mouseup', up); el.addEventListener('mouseleave', up);
-    el.addEventListener('touchstart', down, {passive: false}); el.addEventListener('touchend', up, {passive: false});
+
+    el.addEventListener('mousedown', down);
+
+    el.addEventListener('mouseup', up);
+
+    el.addEventListener('mouseleave', up);
+
+    el.addEventListener('touchstart', down, {passive: false});
+
+    el.addEventListener('touchend', up, {passive: false});
+
 }
+
+
+
+function triggerMobileSniff() {
+
+    if(uMinoMode && isRunning && !player.isSniffStunned && !player.isSniffActive && !winCinematic) {
+
+        let now = performance.now();
+
+        let gameTime = now - startTime;
+
+        if(gameTime > 30000 && now - player.lastSniff > 25000) {
+
+            player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
+
+        }
+
+    }
+
+}
+
+
+
+function hasLOS(x1, y1, x2, y2) {
+
+    if (x1 !== x2 && y1 !== y2) return false;
+
+    if (x1 === x2) {
+
+        let minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+
+        for (let y = minY; y <= maxY; y++) if (grid[y] && grid[y][x1] === 1) return false;
+
+    } else {
+
+        let minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+
+        for (let x = minX; x <= maxX; x++) if (grid[y1] && grid[y1][x] === 1) return false;
+
+    }
+
+    return true;
+
+}
+
+
 
 function getPath(sx, sy, tx, ty) {
+
     let q = [[{x:sx, y:sy}]], vis = new Set([sx + ',' + sy]);
+
     while(q.length > 0) {
+
         let path = q.shift(), cur = path[path.length-1];
+
         if(cur.x === tx && cur.y === ty) return path.slice(1);
+
         [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy]) => {
+
             let nx=cur.x+dx, ny=cur.y+dy;
+
             if(grid[ny] && grid[ny][nx]===0 && !vis.has(nx+','+ny)) { vis.add(nx+','+ny); q.push([...path, {x:nx, y:ny}]); }
+
         });
+
     } return [];
+
 }
+
+
 
 function spawnItem(dim) {
+
     let x, y, tries = 0;
+
     do { x = Math.floor(Math.random()*dim); y = Math.floor(Math.random()*dim); tries++; } 
+
     while((grid[y][x]===1 || items.some(it=>it.gridX===x && it.gridY===y)) && tries < 100);
+
     if(tries < 100) items.push({gridX:x, gridY:y, type: Math.random() > 0.5 ? 'gold' : 'orange'});
+
 }
+
+
 
 function start() {
+
     let s=parseInt(document.getElementById("size").value), dim=s*2+1;
+
     grid=Array.from({length:dim},()=>Array(dim).fill(1)); mazeCenter={x:Math.floor(dim/2), y:Math.floor(dim/2)};
+
     let walls=[]; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
+
     grid[1][1]=0; addW(1,1);
+
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
+
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
+
     
+
     startTime = performance.now();
-    items=[]; visionBonus=0; activeOranges=[]; traps=[];
-    player.gridX = 1; player.gridY = 1; player.renderX = 1*tileSize; player.renderY = 1*tileSize;
+
+    items=[]; visionBonus=0; activeOranges=[]; trashCans=[]; traps=[]; blood=[];
+
+    activeMinigame=null; cinematic=null; winCinematic=null;
+
+    player.isGhost = false; player.ghostType = null;
+
     
+
     let initialItems = itemMadness ? 50 : 15;
+
     for(let i=0; i<initialItems; i++) spawnItem(dim);
+
     
-    monsters=[];
-    if(!uMinoMode) {
-        for(let i=0; i<(1+chaos); i++) {
-            monsters.push({ gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, isMoving:false });
-        }
+
+    for(let i=0; i<30; i++) {
+
+        let tx, ty, tries=0;
+
+        do { tx=Math.floor(Math.random()*dim); ty=Math.floor(Math.random()*dim); tries++; }
+
+        while((grid[ty][tx]===1 || (tx===mazeCenter.x && ty===mazeCenter.y) || trashCans.some(tc=>tc.x===tx&&tc.y===ty)) && tries < 100);
+
+        if(tries < 100) trashCans.push({x: tx, y: ty});
+
     }
 
-    document.getElementById("menu").style.display="none";
-    if(useMobileControls) document.getElementById('mobile-controls').style.display = 'block';
-    isRunning=true; requestAnimationFrame(loop);
+
+
+    if(trapLevel > 0) {
+
+        let trapMultiplier = (trapLevel === 1 ? 5 : 10);
+
+        let trapCount = trapMultiplier * dim;
+
+        for(let i=0; i<trapCount; i++) {
+
+            let tx, ty, tries=0;
+
+            do { tx=Math.floor(Math.random()*dim); ty=Math.floor(Math.random()*dim); tries++; }
+
+            while((grid[ty][tx]===1 || (tx===mazeCenter.x && ty===mazeCenter.y) || trashCans.some(tc=>tc.x===tx&&tc.y===ty) || traps.some(t=>t.gridX===tx&&t.gridY===ty)) && tries < 100);
+
+            if(tries < 100) {
+
+                let r = Math.random() * 100;
+
+                let type = 'glue'; 
+
+                if(r < 2) type = 'lethal'; 
+
+                else if(r < 50) type = 'glue'; 
+
+                else type = 'noise'; 
+
+                traps.push({gridX: tx, gridY: ty, type: type});
+
+            }
+
+        }
+
+    }
+
+
+
+    humans=[]; monsters=[];
+
+    player.lastSniff = startTime + 30000 - 25000;
+
+    player.isHidden = false;
+
+    
+
+    if(uMinoMode) {
+
+        player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
+
+        for(let i=0; i<4; i++) {
+
+            let hx, hy; do { hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim); } while(grid[hy][hx]===1 || Math.hypot(hx-mazeCenter.x, hy-mazeCenter.y) < 5);
+
+            humans.push({
+
+                gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, 
+
+                isMoving:false, isDead:false, isHidden:false, path:[], slowTimer: 0, isBleeding: false,
+
+                fleeMode: false, fleeEndTime: 0, peekMode: false, peekStep: 'none', peekTimer: 0, peekDir: null, lastSeenPlayer: null,
+
+                cornerTile: null, leanOffsetX: 0, leanOffsetY: 0
+
+            });
+
+        }
+
+    } else {
+
+        // MULTIPLAYER CORNER SPAWNS (Simulated local player picks one based on slots, but we'll default to 1,1 or random corner)
+
+        let corners = [[1,1], [dim-2, 1], [1, dim-2], [dim-2, dim-2]];
+
+        let cIdx = mpState.active ? (mpState.isHost ? 0 : 1) : 2; 
+
+        player.gridX = corners[cIdx][0]; player.gridY = corners[cIdx][1];
+
+        
+
+        for(let i=0; i<(1+chaos); i++) {
+
+            monsters.push({
+
+                gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, 
+
+                isMoving:false, isChasing:false, lastSniff: startTime + 30000 - 25000, 
+
+                isSniffStunned: false, isSniffActive: false, sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null
+
+            });
+
+        }
+
+    }
+
+    player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
+
+    document.getElementById("menu").style.display="none"; 
+
+    document.getElementById("win-screen").style.display="none"; 
+
+
+
+    if(useMobileControls) {
+
+        document.getElementById('mobile-controls').style.display = 'block';
+
+        if(uMinoMode) {
+
+            document.getElementById('btn-interact-normal').style.display = 'none';
+
+            document.getElementById('umino-btn').style.display = 'flex';
+
+            document.getElementById('umino-act-btn').style.display = 'flex';
+
+        } else {
+
+            document.getElementById('btn-interact-normal').style.display = 'flex';
+
+            document.getElementById('umino-btn').style.display = 'none';
+
+            document.getElementById('umino-act-btn').style.display = 'none';
+
+        }
+
+    } else {
+
+        document.getElementById('mobile-controls').style.display = 'none';
+
+    }
+
+
+
+    isRunning=true; lastItemSpawn=startTime; requestAnimationFrame(loop);
+
 }
+
+
 
 function handleDeath() {
-    isRunning = false;
-    document.getElementById('jumpscare').style.display = 'flex';
-    setTimeout(() => location.reload(), 2000);
+
+    if(mpState.active) {
+
+        document.getElementById('jumpscare').style.display = 'flex';
+
+        setTimeout(() => {
+
+            document.getElementById('jumpscare').style.display = 'none';
+
+            becomeGhost('dead');
+
+        }, 2000);
+
+    } else {
+
+        isRunning = false; 
+
+        document.getElementById('mobile-controls').style.display = 'none'; 
+
+        document.getElementById('jumpscare').style.display = 'flex'; 
+
+        setTimeout(() => location.reload(), 2000);
+
+    }
+
 }
+
+
+
+function handleEscape() {
+
+    if(mpState.active) {
+
+        document.getElementById('win-screen').style.display = 'flex';
+
+        document.getElementById('win-text').innerText = "YOU ESCAPED!";
+
+        setTimeout(() => {
+
+            document.getElementById('win-screen').style.display = 'none';
+
+            becomeGhost('escaped');
+
+        }, 2000);
+
+    } else {
+
+        alert("YOU ESCAPED!"); location.reload();
+
+    }
+
+}
+
+
 
 function update(now) {
+
     if(!isRunning) return;
-    let speed = baseHumanSpeed / difficultyMult;
-    
-    if(!player.isMoving) {
-        let dx=0, dy=0;
-        if(window.keys['w']) dy=-1; else if(window.keys['s']) dy=1;
-        else if(window.keys['a']) dx=-1; else if(window.keys['d']) dx=1;
-        
-        if(dx!==0 || dy!==0) {
-            let nx=player.gridX+dx, ny=player.gridY+dy;
-            if(grid[ny] && grid[ny][nx]===0) { player.gridX=nx; player.gridY=ny; player.isMoving=true; player.moveStart=now; }
+
+
+
+    if(winCinematic && winCinematic.finished) {
+
+        if(now - winCinematic.endTime > 3000) {
+
+            if(mpState.active) { endGhostMatch(); }
+
+            else { location.reload(); }
+
+            return;
+
         }
-    } else {
-        let t = (now - player.moveStart)/speed;
-        if(t>=1) { player.isMoving=false; player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize; }
-        else {
-            let prevX = (player.renderX / tileSize), prevY = (player.renderY / tileSize);
-            player.renderX += (player.gridX * tileSize - player.renderX) * 0.2;
-            player.renderY += (player.gridY * tileSize - player.renderY) * 0.2;
-        }
+
     }
 
-    monsters.forEach(m => {
-        if(!m.isMoving) {
-            let path = getPath(m.gridX, m.gridY, player.gridX, player.gridY);
-            if(path.length > 0) { m.gridX=path[0].x; m.gridY=path[0].y; m.isMoving=true; m.moveStart=now; }
-        } else {
-            let mt = (now - m.moveStart)/(speed*1.2);
-            if(mt>=1) { m.isMoving=false; m.renderX=m.gridX*tileSize; m.renderY=m.gridY*tileSize; }
-            else {
-                m.renderX += (m.gridX * tileSize - m.renderX) * 0.1;
-                m.renderY += (m.gridY * tileSize - m.renderY) * 0.1;
-            }
-        }
-        if(Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY) < 20) handleDeath();
-    });
-}
 
-function draw() {
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    ctx.fillStyle = "#000"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    
-    ctx.save();
-    ctx.translate(canvas.width/2 - player.renderX - 20, canvas.height/2 - player.renderY - 20);
-    
-    for(let y=0; y<grid.length; y++) {
-        for(let x=0; x<grid[y].length; x++) {
-            if(grid[y][x]===1) { ctx.fillStyle="#111"; ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize); }
-        }
-    }
 
-    items.forEach(it => {
-        ctx.fillStyle = it.type==='gold'?'gold':'orange';
-        ctx.beginPath(); ctx.arc(it.gridX*tileSize+20, it.gridY*tileSize+20, 6, 0, Math.PI*2); ctx.fill();
-    });
+    if(cinematic) {
 
-    ctx.fillStyle = "#0f0"; ctx.fillRect(player.renderX+5, player.renderY+5, 30, 30);
-    monsters.forEach(m => { ctx.fillStyle="red"; ctx.fillRect(m.renderX+5, m.renderY+5, 30, 30); });
-    ctx.restore();
+        let elapsed = now - cinematic.start;
 
-    if(!fullBright) {
-        let grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 20, canvas.width/2, canvas.height/2, 250);
-        grad.addColorStop(0, "transparent"); grad.addColorStop(1, "rgba(0,0,0,0.95)");
-        ctx.fillStyle = grad; ctx.fillRect(0,0,canvas.width,canvas.height);
-    }
-}
+        if(elapsed < 500) {
 
-function loop(now) {
-    update(now);
-    draw();
-    if(isRunning) requestAnimationFrame(loop);
-}
+            let t = elapsed / 500;
 
-function init() {
-    window.addEventListener('keydown', e => window.keys[e.key.toLowerCase()] = true);
-    window.addEventListener('keyup', e => window.keys[e.key.toLowerCase()] = false);
-    simTouch('btn-w', 'w'); simTouch('btn-a', 'a'); simTouch('btn-s', 's'); simTouch('btn-d', 'd');
-}
-</script>
-</body>
-</html>
+            player.renderX = cinematic.startX + (cinematic.targetX - cinematic.startX) * t;
+
+            player.renderY = cinematic.startY + (cinematic.targetY - cinematic.startY) * t;
+
+        } else if(elapsed < 1000) {
+
+            player.gridX = Math.round(cinematic.targetX / tileSize); player.gridY = Math.round(cinematic.targetY / tileSize);
+
+            player.renderX = cinematic.targetX; player.renderY = cinematic.targetY;
+
+        } else if(elapsed < 1500) {
+
+            cinematic.human.isHidden = false;
+
+            cinematic.human.renderX = cinematic.tc.x * tileSize; cinematic.human.renderY = cinematic.tc.y * tileSize;
+
+        } else if(elapsed < 1650) {
+
+            cinematic.isSlashing = tru
