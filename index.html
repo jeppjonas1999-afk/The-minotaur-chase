@@ -1,1133 +1,1077 @@
 <!DOCTYPE html>
-
 <html lang="no">
-
 <head>
-
     <meta charset="UTF-8">
-
     <title>Minotaur: The Vault - v.9.5 MULTIPLAYER & GHOSTS</title>
-
     <style>
-
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
-
         canvas { display: block; }
-
         .overlay { position: absolute; inset: 0; background: #0a0a0a; display: flex; justify-content: center; align-items: center; z-index: 100; flex-direction: column; }
-
         #menu-wrapper { display: flex; position: relative; align-items: stretch; flex-direction: column; }
-
         #menu-top-section { display: flex; position: relative; align-items: stretch; }
-
         .main-box { border: 2px solid #333; padding: 40px; background: #111; width: 350px; text-align: center; z-index: 2; position: relative; }
-
         
-
         #settings-btn { position: absolute; top: 15px; left: 15px; font-size: 24px; cursor: pointer; transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 10; }
-
         #settings-btn.open { transform: rotate(540deg); }
-
         #settings-panel { 
-
             position: absolute; top: 50px; left: 15px; background: #222; border: 1px solid #444; border-radius: 5px;
-
             padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out, padding 0.5s ease-out;
-
             width: 200px; text-align: left; z-index: 9; box-sizing: border-box;
-
         }
-
         #settings-panel.open { max-height: 150px; padding: 15px; }
-
         .setting-row { font-size: 12px; margin-bottom: 15px; color: #ccc; }
-
         .setting-row label { display: flex; align-items: center; cursor: pointer; }
-
         .setting-row input[type="range"] { width: 100%; margin-top: 5px; }
 
-
-
         /* NYE MULTIPLAYER STYLES */
-
         #mp-btns { position: absolute; top: 15px; left: 55px; display: flex; gap: 5px; z-index: 10; }
-
         .mp-btn { background: #333; color: white; border: 1px solid #555; padding: 5px 10px; font-family: inherit; font-size: 12px; cursor: pointer; border-radius: 3px; }
-
         .mp-btn:hover { background: #444; }
-
         
-
         #post-it { 
-
             position: fixed; top: 20px; right: 30px; background: #ffe66d; color: #000; 
-
             width: 100px; height: 100px; padding: 10px; box-sizing: border-box;
-
             transform: rotate(5deg); box-shadow: 2px 4px 6px rgba(0,0,0,0.5);
-
             display: none; flex-direction: column; justify-content: center; align-items: center;
-
             font-family: 'Comic Sans MS', cursive, sans-serif; font-weight: bold; font-size: 18px;
-
             z-index: 101; text-align: center;
-
         }
-
         #post-it::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 20px; background: rgba(0,0,0,0.05); }
 
-
-
         #lobby-slots { display: none; gap: 10px; margin-top: 15px; justify-content: center; }
-
         .lobby-slot { width: 60px; height: 60px; border: 2px dashed #444; background: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
-
         .lobby-slot.filled { border: 2px solid #555; }
-
         .slot-dot { width: 10px; height: 10px; border-radius: 50%; background: #444; margin-bottom: 5px; }
-
         .slot-dot.active { background: #0f0; box-shadow: 0 0 5px #0f0; }
-
         .slot-name { font-size: 9px; color: #ccc; max-width: 50px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-
-
         #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; justify-content: center; align-items: center; }
-
         .modal-box { background: #111; border: 2px solid #555; padding: 20px; text-align: center; width: 250px; }
-
         .modal-box input { width: 90%; padding: 10px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; font-family: inherit; text-align: center;}
-
         .modal-box button { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; cursor: pointer; font-family: inherit; }
 
-
-
         #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 90; display: none; user-select: none; touch-action: none; -webkit-user-select: none; }
-
         .dpad { position: absolute; bottom: 40px; left: 40px; display: grid; grid-template-columns: 90px 90px 90px; grid-template-rows: 90px 90px 90px; gap: 10px; pointer-events: auto; }
-
         .dbtn { background: rgba(40,40,40,0.8); border: 2px solid #555; border-radius: 10px; color: white; font-size: 36px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-
         .dbtn:active { background: rgba(80,80,80,0.9); }
-
         #btn-w { grid-column: 2; grid-row: 1; }
-
         #btn-a { grid-column: 1; grid-row: 2; }
-
         #btn-s { grid-column: 2; grid-row: 2; }
-
         #btn-d { grid-column: 3; grid-row: 2; }
 
-
-
         .action-area { position: absolute; bottom: 80px; right: 80px; pointer-events: auto; display: flex; justify-content: center; align-items: center; width: 200px; height: 200px; }
-
         #btn-interact-normal { width: 200px; height: 200px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 36px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-
         #btn-interact-normal:active { background: rgba(80,80,80,0.9); }
-
         #umino-btn { width: 200px; height: 200px; border-radius: 50%; background: darkred; border: 4px solid #300; cursor: pointer; position: relative; overflow: hidden; display: none; justify-content: center; align-items: center; }
-
         #umino-cooldown { position: absolute; inset: 0; background: conic-gradient(red 0%, transparent 0%); transform: scaleX(-1); pointer-events: none; }
-
         
-
         #umino-act-btn { position: absolute; top: 0px; right: -60px; width: 100px; height: 100px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 24px; cursor: pointer; display: none; justify-content: center; align-items: center; }
-
         #umino-act-btn:active { background: rgba(80,80,80,0.9); }
 
-
-
         #modifiers-wrapper { width: 0px; overflow: hidden; transition: width 1.75s cubic-bezier(0.68, -0.6, 0.32, 1.6); position: relative; }
-
         #modifiers-wrapper.open { width: 450px; }
-
         #modifiers-panel { 
-
             width: 450px; background: #0f0f0f; border: 2px solid #333; border-left: none; 
-
             padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 15px; box-sizing: border-box; 
-
             height: 100%;
-
         }
-
         #expand-btn { 
-
             position: absolute; right: -50px; top: 50%; transform: translateY(-50%); 
-
             width: 50px; height: 100px; background: #222; border: 2px solid #333; border-left: none; 
-
             color: #fff; font-size: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 0 10px 10px 0; 
-
             z-index: 10;
-
         }
-
-
 
         .menu-label { display: block; text-align: left; margin-top: 15px; font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold;}
-
         select, .start-btn { width: 100%; padding: 12px; background: #1a1a1a; color: #fff; border: 1px solid #333; margin-top: 5px; cursor: pointer; font-family: inherit; }
-
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
-
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
-
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
-
         .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 8px; }
-
         .mod-btns { display: flex; gap: 2px; width: 100%; }
-
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
-
         .mod-btns button.active { background: #800; border-color: #f00; }
 
-
-
         #jumpscare { 
-
             position: fixed; inset: 0; background: #600; color: #000; 
-
             display: none; flex-direction: column; justify-content: center; align-items: center; 
-
             z-index: 1000; animation: shake 0.1s infinite;
-
         }
-
         @keyframes shake { 0% { transform: translate(5px, 5px); } 50% { transform: translate(-5px, -5px); } 100% { transform: translate(5px, -5px); } }
-
         
-
         #win-screen { 
-
             position: fixed; inset: 0; background: rgba(0,0,0,0.8); color: #800; 
-
             display: none; flex-direction: column; justify-content: center; align-items: center; 
-
             z-index: 1000;
-
         }
-
     </style>
-
 </head>
-
 <body onload="init()">
-
     <div id="modal-overlay">
-
         <div class="modal-box" id="nickname-modal" style="display:none;">
-
             <h3>enter nickname:</h3>
-
             <input type="text" id="nickname-input" maxlength="10">
-
             <button onclick="submitNickname()">OK</button>
-
         </div>
-
         <div class="modal-box" id="join-modal" style="display:none;">
-
             <h3>enter code:</h3>
-
             <input type="text" id="joincode-input" maxlength="6" style="text-transform: uppercase;">
-
             <button onclick="submitJoinCode()">OK</button>
-
         </div>
-
     </div>
-
-
 
     <div id="post-it">
-
         <span style="font-size:12px; font-weight:normal; color:#555;">CODE:</span>
-
         <span id="post-it-code"></span>
-
     </div>
-
-
 
     <div id="jumpscare">
-
         <h1 style="font-size: 80px; margin: 0;">CAUGHT!</h1>
-
         <p style="font-size: 20px; font-weight: bold;">the minotaur will be well fed today</p>
-
     </div>
-
-
 
     <div id="win-screen">
-
         <h1 id="win-text" style="font-size: 50px; margin: 0; letter-spacing: 5px;">minotauren er mettet for nå...</h1>
-
     </div>
-
-
 
     <div id="mobile-controls">
-
         <div class="dpad">
-
             <div id="btn-w" class="dbtn">↑</div>
-
             <div id="btn-a" class="dbtn">←</div>
-
             <div id="btn-s" class="dbtn">↓</div>
-
             <div id="btn-d" class="dbtn">→</div>
-
         </div>
-
         <div class="action-area">
-
             <div id="btn-interact-normal">ACT</div>
-
             <div id="umino-act-btn">ACT</div>
-
             <div id="umino-btn">
-
                 <div id="umino-cooldown"></div>
-
             </div>
-
         </div>
-
     </div>
-
-
 
     <div id="menu" class="overlay">
-
         <div id="menu-wrapper">
-
             <div id="menu-top-section">
-
                 <div class="main-box">
-
                     <div id="settings-btn" onclick="toggleSettings()">⚙️</div>
-
                     <div id="mp-btns">
-
                         <button class="mp-btn" id="btn-host" onclick="hostGame()">Host game</button>
-
                         <button class="mp-btn" id="btn-join" onclick="showJoin()">Join game</button>
-
                         <button class="mp-btn" id="btn-leave" style="display:none;" onclick="leaveGame()">Leave game</button>
-
                     </div>
-
                     <div id="settings-panel">
-
                         <div class="setting-row">
-
                             <label><input type="checkbox" id="mobile-cb" onchange="useMobileControls=this.checked; localStorage.setItem('minotaur_mobile', this.checked);" style="margin-right:8px;"> Mobile Controls</label>
-
                         </div>
-
                         <div class="setting-row" style="margin-bottom:0;">
-
                             <span style="display:block; margin-bottom:5px;">Brightness: <span id="bright-val">50</span></span>
-
                             <input type="range" id="bright-slider" min="0" max="100" value="50" oninput="gameBrightness=this.value; document.getElementById('bright-val').innerText=this.value;">
-
                         </div>
-
                     </div>
-
-
 
                     <h1 style="color:#800; letter-spacing:8px; margin:0; margin-top:20px;">MINOTAUR</h1>
-
                     <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.5 - MULTIPLAYER & GHOSTS</p>
-
                     <span class="menu-label">Maze Size</span>
-
                     <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
-
                     <span class="menu-label">Difficulty</span>
-
                     <select id="diff"><option value="easy">EASY (0.8x)</option><option value="hard" selected>HARD (1.2x)</option><option value="insane">INSANE (1.5x)</option></select>
-
                     <button class="start-btn" onclick="start()">START GAME</button>
-
                 </div>
-
                 
-
                 <div id="modifiers-wrapper">
-
                     <div id="modifiers-panel">
-
                         <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
-
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightnessModifier(false)">OFF</button><button id="b1" onclick="setBrightnessModifier(true)">ON</button></div></div>
-
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
-
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
-
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #800; color:#fff;">U-MINO</div><div class="mod-btns"><button id="u0" class="active" onclick="setUMino(false)">OFF</button><button id="u1" onclick="setUMino(true)">ON</button></div></div>
-
                         <div class="mod-slot">?</div>
-
                         <div class="mod-slot">?</div>
-
                         <div class="mod-slot">?</div>
-
                         <div class="mod-slot">?</div>
-
                     </div>
-
                 </div>
-
                 <div id="expand-btn" onclick="togglePanel()">+</div>
-
             </div>
-
             
-
             <div id="lobby-slots">
-
                 <div class="lobby-slot" id="slot-0"><div class="slot-dot"></div><div class="slot-name"></div></div>
-
                 <div class="lobby-slot" id="slot-1"><div class="slot-dot"></div><div class="slot-name"></div></div>
-
                 <div class="lobby-slot" id="slot-2"><div class="slot-dot"></div><div class="slot-name"></div></div>
-
                 <div class="lobby-slot" id="slot-3"><div class="slot-dot"></div><div class="slot-name"></div></div>
-
                 <div class="lobby-slot" id="slot-4"><div class="slot-dot"></div><div class="slot-name"></div></div>
-
             </div>
-
         </div>
-
     </div>
-
     <canvas id="game"></canvas>
 
-
-
 <script>
-
 let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, grid=[], items=[], trashCans=[], humans=[], monsters=[], traps=[];
-
 let startTime = 0, lastItemSpawn = 0, visionBonus = 0, activeOranges = [];
-
 let activeMinigame = null, cinematic = null, winCinematic = null, blood = [];
-
 let useMobileControls = (localStorage.getItem('minotaur_mobile') === 'true'), gameBrightness = 50;
 
-
-
 // MULTIPLAYER STATE
-
 let mpState = { active: false, isHost: false, code: "", players: [], pendingAction: null };
 
-
-
 let player = { 
-
     gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
-
     isHidden: false, lastSniff: 0, isSniffStunned: false, isSniffActive: false, 
-
     sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null, slowTimer: 0, noiseTarget: null,
-
     isGhost: false, ghostType: null // 'dead' or 'escaped'
-
 };
-
 let difficultyMult=1.2, baseHumanSpeed=320, tileSize=40, mazeCenter={x:0,y:0};
-
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 
-
-
 // --- MULTIPLAYER UI LOGIC ---
-
 function generateCode() {
-
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-
     let result = '';
-
     for(let i=0; i<6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-
     return result;
-
 }
-
-
 
 function hostGame() {
-
     mpState.pendingAction = 'host';
-
     document.getElementById('modal-overlay').style.display = 'flex';
-
     document.getElementById('nickname-modal').style.display = 'block';
-
     document.getElementById('join-modal').style.display = 'none';
-
 }
-
-
 
 function showJoin() {
-
     mpState.pendingAction = 'join';
-
     document.getElementById('modal-overlay').style.display = 'flex';
-
     document.getElementById('join-modal').style.display = 'block';
-
     document.getElementById('nickname-modal').style.display = 'none';
-
 }
-
-
 
 function submitJoinCode() {
-
     let code = document.getElementById('joincode-input').value.toUpperCase();
-
     if(code.length > 0) {
-
         document.getElementById('join-modal').style.display = 'none';
-
         document.getElementById('nickname-modal').style.display = 'block';
-
     }
-
 }
-
-
 
 function submitNickname() {
-
     let nick = document.getElementById('nickname-input').value || "Player";
-
     document.getElementById('modal-overlay').style.display = 'none';
-
     
-
     document.getElementById('btn-host').style.display = 'none';
-
     document.getElementById('btn-join').style.display = 'none';
-
     document.getElementById('btn-leave').style.display = 'inline-block';
-
     document.getElementById('lobby-slots').style.display = 'flex';
 
-
-
     if(mpState.pendingAction === 'host') {
-
         mpState.active = true;
-
         mpState.isHost = true;
-
         mpState.code = generateCode();
-
         document.getElementById('post-it-code').innerText = mpState.code;
-
         document.getElementById('post-it').style.display = 'flex';
-
         
-
         mpState.players = [{ name: nick, isHost: true }];
-
         updateLobbyUI();
-
     } else if(mpState.pendingAction === 'join') {
-
         mpState.active = true;
-
         mpState.isHost = false;
-
         mpState.code = document.getElementById('joincode-input').value.toUpperCase();
-
         document.getElementById('post-it-code').innerText = mpState.code;
-
         document.getElementById('post-it').style.display = 'flex';
-
         
-
         // Disable modifiers for non-hosts
-
         document.getElementById('modifiers-wrapper').style.pointerEvents = 'none';
-
         document.getElementById('modifiers-wrapper').style.opacity = '0.5';
 
-
-
         mpState.players = [{ name: "HostGuy", isHost: true }, { name: nick, isHost: false }];
-
         updateLobbyUI();
-
     }
-
 }
-
-
 
 function leaveGame() {
-
     mpState.active = false;
-
     mpState.isHost = false;
-
     mpState.players = [];
-
     document.getElementById('btn-host').style.display = 'inline-block';
-
     document.getElementById('btn-join').style.display = 'inline-block';
-
     document.getElementById('btn-leave').style.display = 'none';
-
     document.getElementById('post-it').style.display = 'none';
-
     document.getElementById('lobby-slots').style.display = 'none';
-
     
-
     document.getElementById('modifiers-wrapper').style.pointerEvents = 'auto';
-
     document.getElementById('modifiers-wrapper').style.opacity = '1';
-
     updateLobbyUI();
-
 }
-
-
 
 function updateLobbyUI() {
-
     for(let i=0; i<5; i++) {
-
         let slot = document.getElementById('slot-'+i);
-
         let dot = slot.querySelector('.slot-dot');
-
         let name = slot.querySelector('.slot-name');
-
         
-
         if(mpState.players[i]) {
-
             slot.classList.add('filled');
-
             dot.classList.add('active');
-
             name.innerText = mpState.players[i].name;
-
         } else {
-
             slot.classList.remove('filled');
-
             dot.classList.remove('active');
-
             name.innerText = "";
-
         }
-
     }
-
 }
-
-
 
 function endGhostMatch() {
-
     isRunning = false;
-
     document.getElementById('mobile-controls').style.display = 'none';
-
     document.getElementById('menu').style.display = 'flex';
-
 }
-
-
 
 function becomeGhost(type) {
-
     player.isGhost = true;
-
     player.ghostType = type;
-
     player.isHidden = false;
-
     
-
     // Hvis vi er i multiplayer og alle "ekte" spillere er ghosts (her simulert med bare lokalt)
-
     if(mpState.active) {
-
         // Simulert sjekk: hvis spillet er MP, sjekker vi om lokal spiller er ghost
-
         // Ekte MP ville sjekket alle spilleres state. For nå avslutter vi når lokal dør/escaper i solo, 
-
         // eller lar dem fly rundt litt før vi avslutter.
-
         setTimeout(() => endGhostMatch(), 10000); // Lar dem fly rundt i 10 sekunder før lobby.
-
     }
-
 }
-
 // ----------------------------
 
-
-
 function toggleSettings() {
-
     let gear = document.getElementById('settings-btn');
-
     let panel = document.getElementById('settings-panel');
-
     if(gear.classList.contains('open')) {
-
         gear.classList.remove('open');
-
         panel.classList.remove('open');
-
     } else {
-
         gear.classList.add('open');
-
         panel.classList.add('open');
-
     }
-
 }
-
-
 
 function togglePanel() { 
-
     if(!mpState.isHost && mpState.active) return; // Only host
-
     const wrapper = document.getElementById('modifiers-wrapper');
-
     const btn = document.getElementById('expand-btn');
-
     if(wrapper.classList.contains('open')) { wrapper.classList.remove('open'); btn.innerHTML = '+'; } 
-
     else { wrapper.classList.add('open'); btn.innerHTML = '-'; }
-
 }
-
-
 
 function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
-
 function setBrightnessModifier(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
-
 function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
-
 function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
-
 function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
 
-
-
 function simTouch(id, key) {
-
     let el = document.getElementById(id);
-
     const down = (e) => { e.preventDefault(); window.keys[key] = true; };
-
     const up = (e) => { e.preventDefault(); window.keys[key] = false; };
-
     el.addEventListener('mousedown', down);
-
     el.addEventListener('mouseup', up);
-
     el.addEventListener('mouseleave', up);
-
     el.addEventListener('touchstart', down, {passive: false});
-
     el.addEventListener('touchend', up, {passive: false});
-
 }
-
-
 
 function triggerMobileSniff() {
-
     if(uMinoMode && isRunning && !player.isSniffStunned && !player.isSniffActive && !winCinematic) {
-
         let now = performance.now();
-
         let gameTime = now - startTime;
-
         if(gameTime > 30000 && now - player.lastSniff > 25000) {
-
             player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
-
         }
-
     }
-
 }
-
-
 
 function hasLOS(x1, y1, x2, y2) {
-
     if (x1 !== x2 && y1 !== y2) return false;
-
     if (x1 === x2) {
-
         let minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
-
         for (let y = minY; y <= maxY; y++) if (grid[y] && grid[y][x1] === 1) return false;
-
     } else {
-
         let minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
-
         for (let x = minX; x <= maxX; x++) if (grid[y1] && grid[y1][x] === 1) return false;
-
     }
-
     return true;
-
 }
-
-
 
 function getPath(sx, sy, tx, ty) {
-
     let q = [[{x:sx, y:sy}]], vis = new Set([sx + ',' + sy]);
-
     while(q.length > 0) {
-
         let path = q.shift(), cur = path[path.length-1];
-
         if(cur.x === tx && cur.y === ty) return path.slice(1);
-
         [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy]) => {
-
             let nx=cur.x+dx, ny=cur.y+dy;
-
             if(grid[ny] && grid[ny][nx]===0 && !vis.has(nx+','+ny)) { vis.add(nx+','+ny); q.push([...path, {x:nx, y:ny}]); }
-
         });
-
     } return [];
-
 }
-
-
 
 function spawnItem(dim) {
-
     let x, y, tries = 0;
-
     do { x = Math.floor(Math.random()*dim); y = Math.floor(Math.random()*dim); tries++; } 
-
     while((grid[y][x]===1 || items.some(it=>it.gridX===x && it.gridY===y)) && tries < 100);
-
     if(tries < 100) items.push({gridX:x, gridY:y, type: Math.random() > 0.5 ? 'gold' : 'orange'});
-
 }
-
-
 
 function start() {
-
     let s=parseInt(document.getElementById("size").value), dim=s*2+1;
-
     grid=Array.from({length:dim},()=>Array(dim).fill(1)); mazeCenter={x:Math.floor(dim/2), y:Math.floor(dim/2)};
-
     let walls=[]; const addW=(x,y)=>{ [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy])=>{ let nx=x+dx*2, ny=y+dy*2; if(ny>0&&ny<dim-1&&nx>0&&nx<dim-1&&grid[ny][nx]===1) walls.push({x:nx,y:ny,wx:x+dx,wy:y+dy}); }); };
-
     grid[1][1]=0; addW(1,1);
-
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
-
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
-
     
-
     startTime = performance.now();
-
     items=[]; visionBonus=0; activeOranges=[]; trashCans=[]; traps=[]; blood=[];
-
     activeMinigame=null; cinematic=null; winCinematic=null;
-
     player.isGhost = false; player.ghostType = null;
-
     
-
     let initialItems = itemMadness ? 50 : 15;
-
     for(let i=0; i<initialItems; i++) spawnItem(dim);
-
     
-
     for(let i=0; i<30; i++) {
-
         let tx, ty, tries=0;
-
         do { tx=Math.floor(Math.random()*dim); ty=Math.floor(Math.random()*dim); tries++; }
-
         while((grid[ty][tx]===1 || (tx===mazeCenter.x && ty===mazeCenter.y) || trashCans.some(tc=>tc.x===tx&&tc.y===ty)) && tries < 100);
-
         if(tries < 100) trashCans.push({x: tx, y: ty});
-
     }
-
-
 
     if(trapLevel > 0) {
-
         let trapMultiplier = (trapLevel === 1 ? 5 : 10);
-
         let trapCount = trapMultiplier * dim;
-
         for(let i=0; i<trapCount; i++) {
-
             let tx, ty, tries=0;
-
             do { tx=Math.floor(Math.random()*dim); ty=Math.floor(Math.random()*dim); tries++; }
-
             while((grid[ty][tx]===1 || (tx===mazeCenter.x && ty===mazeCenter.y) || trashCans.some(tc=>tc.x===tx&&tc.y===ty) || traps.some(t=>t.gridX===tx&&t.gridY===ty)) && tries < 100);
-
             if(tries < 100) {
-
                 let r = Math.random() * 100;
-
                 let type = 'glue'; 
-
                 if(r < 2) type = 'lethal'; 
-
                 else if(r < 50) type = 'glue'; 
-
                 else type = 'noise'; 
-
                 traps.push({gridX: tx, gridY: ty, type: type});
-
             }
-
         }
-
     }
-
-
 
     humans=[]; monsters=[];
-
     player.lastSniff = startTime + 30000 - 25000;
-
     player.isHidden = false;
-
     
-
     if(uMinoMode) {
-
         player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
-
         for(let i=0; i<4; i++) {
-
             let hx, hy; do { hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim); } while(grid[hy][hx]===1 || Math.hypot(hx-mazeCenter.x, hy-mazeCenter.y) < 5);
-
             humans.push({
-
                 gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, 
-
                 isMoving:false, isDead:false, isHidden:false, path:[], slowTimer: 0, isBleeding: false,
-
                 fleeMode: false, fleeEndTime: 0, peekMode: false, peekStep: 'none', peekTimer: 0, peekDir: null, lastSeenPlayer: null,
-
                 cornerTile: null, leanOffsetX: 0, leanOffsetY: 0
-
             });
-
         }
-
     } else {
-
         // MULTIPLAYER CORNER SPAWNS (Simulated local player picks one based on slots, but we'll default to 1,1 or random corner)
-
         let corners = [[1,1], [dim-2, 1], [1, dim-2], [dim-2, dim-2]];
-
         let cIdx = mpState.active ? (mpState.isHost ? 0 : 1) : 2; 
-
         player.gridX = corners[cIdx][0]; player.gridY = corners[cIdx][1];
-
         
-
         for(let i=0; i<(1+chaos); i++) {
-
             monsters.push({
-
                 gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, 
-
                 isMoving:false, isChasing:false, lastSniff: startTime + 30000 - 25000, 
-
                 isSniffStunned: false, isSniffActive: false, sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null
-
             });
-
         }
-
     }
-
     player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
-
     document.getElementById("menu").style.display="none"; 
-
     document.getElementById("win-screen").style.display="none"; 
 
-
-
     if(useMobileControls) {
-
         document.getElementById('mobile-controls').style.display = 'block';
-
         if(uMinoMode) {
-
             document.getElementById('btn-interact-normal').style.display = 'none';
-
             document.getElementById('umino-btn').style.display = 'flex';
-
             document.getElementById('umino-act-btn').style.display = 'flex';
-
         } else {
-
             document.getElementById('btn-interact-normal').style.display = 'flex';
-
             document.getElementById('umino-btn').style.display = 'none';
-
             document.getElementById('umino-act-btn').style.display = 'none';
-
         }
-
     } else {
-
         document.getElementById('mobile-controls').style.display = 'none';
-
     }
-
-
 
     isRunning=true; lastItemSpawn=startTime; requestAnimationFrame(loop);
-
 }
-
-
 
 function handleDeath() {
-
     if(mpState.active) {
-
         document.getElementById('jumpscare').style.display = 'flex';
-
         setTimeout(() => {
-
             document.getElementById('jumpscare').style.display = 'none';
-
             becomeGhost('dead');
-
         }, 2000);
-
     } else {
-
         isRunning = false; 
-
         document.getElementById('mobile-controls').style.display = 'none'; 
-
         document.getElementById('jumpscare').style.display = 'flex'; 
-
         setTimeout(() => location.reload(), 2000);
-
     }
-
 }
-
-
 
 function handleEscape() {
-
     if(mpState.active) {
-
         document.getElementById('win-screen').style.display = 'flex';
-
         document.getElementById('win-text').innerText = "YOU ESCAPED!";
-
         setTimeout(() => {
-
             document.getElementById('win-screen').style.display = 'none';
-
             becomeGhost('escaped');
-
         }, 2000);
-
     } else {
-
         alert("YOU ESCAPED!"); location.reload();
-
     }
-
 }
 
-
-
 function update(now) {
-
     if(!isRunning) return;
 
-
-
     if(winCinematic && winCinematic.finished) {
-
         if(now - winCinematic.endTime > 3000) {
-
             if(mpState.active) { endGhostMatch(); }
-
             else { location.reload(); }
-
             return;
-
         }
-
     }
 
-
-
     if(cinematic) {
-
         let elapsed = now - cinematic.start;
-
         if(elapsed < 500) {
-
             let t = elapsed / 500;
-
             player.renderX = cinematic.startX + (cinematic.targetX - cinematic.startX) * t;
-
             player.renderY = cinematic.startY + (cinematic.targetY - cinematic.startY) * t;
-
         } else if(elapsed < 1000) {
-
             player.gridX = Math.round(cinematic.targetX / tileSize); player.gridY = Math.round(cinematic.targetY / tileSize);
-
             player.renderX = cinematic.targetX; player.renderY = cinematic.targetY;
-
         } else if(elapsed < 1500) {
-
             cinematic.human.isHidden = false;
-
             cinematic.human.renderX = cinematic.tc.x * tileSize; cinematic.human.renderY = cinematic.tc.y * tileSize;
-
         } else if(elapsed < 1650) {
+            cinematic.isSlashing = true;
+        } else {
+            cinematic.human.isDead = true;
+            [[0,0],[0,1],[0,-1],[1,0],[-1,0]].forEach(d => blood.push({x: cinematic.tc.x + d[0], y: cinematic.tc.y + d[1]}));
+            cinematic = null;
+        }
+        return;
+    }
 
-            cinematic.isSlashing = tru
+    if(activeMinigame) {
+        if(now - activeMinigame.lastTick > 50) { activeMinigame.progress = Math.max(0, activeMinigame.progress - 1.5); activeMinigame.lastTick = now; }
+        if(activeMinigame.progress >= 100) {
+            let validDirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[player.gridY+d[1]] && grid[player.gridY+d[1]][player.gridX+d[0]] === 0);
+            let fallback = validDirs.length > 0 ? validDirs[0] : [0,0];
+            cinematic = {
+                start: now, startX: player.renderX, startY: player.renderY,
+                targetX: (player.gridX + fallback[0]) * tileSize, targetY: (player.gridY + fallback[1]) * tileSize,
+                human: activeMinigame.human, tc: activeMinigame.tc, isSlashing: false
+            };
+            activeMinigame = null;
+        }
+        return;
+    }
+
+    let gameTime = now - startTime;
+
+    if(useMobileControls && uMinoMode) {
+        let elapsed = now - player.lastSniff;
+        let totalWait = 25000;
+        let currentWait = elapsed;
+        if (gameTime < 30000 && player.lastSniff === startTime + 30000 - 25000) {
+            totalWait = 30000; currentWait = gameTime;
+        }
+        let pct = Math.min((currentWait / totalWait) * 100, 100);
+        let btn = document.getElementById('umino-btn');
+        let cd = document.getElementById('umino-cooldown');
+        
+        if(pct < 100 || player.isSniffStunned || player.isSniffActive) {
+            btn.style.background = 'darkred';
+            cd.style.background = `conic-gradient(red ${pct}%, transparent 0)`;
+        } else {
+            btn.style.background = 'red';
+            cd.style.background = 'none';
+        }
+    }
+
+    if(uMinoMode && humans.length > 0 && humans.every(h => h.isDead) && !winCinematic) {
+        winCinematic = {
+            start: now, duration: 5000,
+            path: getPath(player.gridX, player.gridY, mazeCenter.x, mazeCenter.y),
+            startX: player.renderX, startY: player.renderY,
+            startGridX: player.gridX, startGridY: player.gridY, finished: false
+        };
+    }
+
+    if(winCinematic) {
+        let elapsed = now - winCinematic.start;
+        let t = Math.min(elapsed / winCinematic.duration, 1);
+        
+        if(winCinematic.path.length === 0) {
+            player.renderX = mazeCenter.x * tileSize; player.renderY = mazeCenter.y * tileSize;
+            player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
+        } else {
+            let totalSteps = winCinematic.path.length;
+            let currentStepFloat = t * totalSteps;
+            let currentStepIdx = Math.floor(currentStepFloat);
+            
+            if(currentStepIdx >= totalSteps) {
+                let last = winCinematic.path[totalSteps - 1];
+                player.renderX = last.x * tileSize; player.renderY = last.y * tileSize;
+                player.gridX = last.x; player.gridY = last.y;
+            } else {
+                let stepT = currentStepFloat - currentStepIdx;
+                let startPt = currentStepIdx === 0 ? {x: winCinematic.startGridX, y: winCinematic.startGridY} : winCinematic.path[currentStepIdx - 1];
+                let endPt = winCinematic.path[currentStepIdx];
+                player.renderX = (startPt.x + (endPt.x - startPt.x) * stepT) * tileSize;
+                player.renderY = (startPt.y + (endPt.y - startPt.y) * stepT) * tileSize;
+                player.gridX = Math.round(startPt.x + (endPt.x - startPt.x) * stepT);
+                player.gridY = Math.round(startPt.y + (endPt.y - startPt.y) * stepT);
+            }
+        }
+        
+        if(t === 1 && !winCinematic.finished) {
+            winCinematic.finished = true;
+            winCinematic.endTime = now;
+            document.getElementById('mobile-controls').style.display = 'none';
+            document.getElementById('win-screen').style.display = 'flex';
+        }
+    }
+
+    if(uMinoMode && window.keys['shift'] && gameTime > 30000 && now - player.lastSniff > 25000 && !player.isSniffStunned && !player.isSniffActive && !winCinematic) {
+        player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
+    }
+
+    if(player.isSniffStunned) {
+        if(now - player.sniffStunTimer > 2500) {
+            player.isSniffStunned = false; player.isSniffActive = true; player.sniffActiveTimer = now;
+            let valid = humans.filter(h => !h.isDead && !h.isHidden);
+            if(valid.length > 0) player.sniffTarget = {gridX: valid[0].gridX, gridY: valid[0].gridY, renderX: valid[0].gridX*tileSize, renderY: valid[0].gridY*tileSize};
+        }
+    } else if(player.isSniffActive) {
+        if(now - player.sniffActiveTimer > 8500) { player.isSniffActive = false; player.sniffTarget = null; }
+    }
+
+    monsters.forEach(m => {
+        let dist = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
+        if(!uMinoMode && !player.isHidden && !player.isGhost && dist < 25) { handleDeath(); return; }
+        
+        let seePlayer = !player.isGhost && hasLOS(m.gridX, m.gridY, player.gridX, player.gridY) && !player.isHidden;
+        
+        if(seePlayer) { m.isChasing = true; m.isSniffStunned = false; m.isSniffActive = false; m.sniffTarget = null; } 
+        else { m.isChasing = false; }
+
+        if(gameTime > 30000 && now - m.lastSniff > 25000 && !m.isSniffStunned && !m.isSniffActive && Math.random() < 0.01) {
+            m.isSniffStunned = true; m.sniffStunTimer = now; m.lastSniff = now;
+        }
+
+        if(m.isSniffStunned) {
+            if(now - m.sniffStunTimer > 2500) {
+                m.isSniffStunned = false; m.isSniffActive = true; m.sniffActiveTimer = now;
+                if(!player.isHidden && !player.isGhost) m.sniffTarget = {gridX: player.gridX, gridY: player.gridY};
+            }
+        } else if(m.isSniffActive) {
+            if(now - m.sniffActiveTimer > 8500) { m.isSniffActive = false; m.sniffTarget = null; }
+        }
+
+        if(!m.isMoving && !m.isSniffStunned) {
+            let nx, ny;
+            if(m.sniffTarget) {
+                let p = getPath(m.gridX, m.gridY, m.sniffTarget.gridX, m.sniffTarget.gridY);
+                if(p.length > 0) { nx = p[0].x; ny = p[0].y; }
+                if(m.gridX === m.sniffTarget.gridX && m.gridY === m.sniffTarget.gridY) m.sniffTarget = null;
+            } else if(m.isChasing) {
+                let p = getPath(m.gridX, m.gridY, player.gridX, player.gridY); 
+                if(p.length > 0) { nx = p[0].x; ny = p[0].y; } 
+            } else if(m.noiseTarget) {
+                let p = getPath(m.gridX, m.gridY, m.noiseTarget.gridX, m.noiseTarget.gridY);
+                if(p.length > 0) { nx = p[0].x; ny = p[0].y; }
+                if(m.gridX === m.noiseTarget.gridX && m.gridY === m.noiseTarget.gridY) m.noiseTarget = null;
+            } else {
+                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); 
+                let f=ds[Math.floor(Math.random()*ds.length)]; 
+                if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];}
+            }
+            if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
+        } else if(m.isMoving) {
+            let speed = (baseHumanSpeed / difficultyMult);
+            if(m.sniffTarget) speed /= 2.5; 
+            let t=Math.min((now-m.moveStart)/speed, 1);
+            m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
+            if(t===1){m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false;}
+        }
+    });
+
+    humans.forEach(h => {
+        if(h.isDead) return;
+        if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { 
+            if(mpState.active) { endGhostMatch(); }
+            else { isRunning=false; alert("A HUMAN ESCAPED! YOU LOSE."); location.reload(); }
+        }
+        
+        h.isBleeding = blood.some(b => b.x === h.gridX && b.y === h.gridY);
+
+        let seeMino = !player.isGhost && hasLOS(h.gridX, h.gridY, player.gridX, player.gridY);
+
+        if(h.peekMode && (h.peekStep === 'leaning' || h.peekStep === 'observing')) {
+            let peekX = h.gridX + h.peekDir.x;
+            let peekY = h.gridY + h.peekDir.y;
+            let dx = player.gridX - peekX;
+            let dy = player.gridY - peekY;
+            let dist = Math.abs(dx) + Math.abs(dy);
+            
+            let isBehind = false;
+            if (h.peekDir.x !== 0 && Math.sign(dx) === -Math.sign(h.peekDir.x)) isBehind = true;
+            if (h.peekDir.y !== 0 && Math.sign(dy) === -Math.sign(h.peekDir.y)) isBehind = true;
+
+            if (!isBehind && dist <= 3 && !player.isGhost && hasLOS(peekX, peekY, player.gridX, player.gridY)) {
+                seeMino = true;
+            }
+        }
+
+        if(!h.isHidden && !player.isGhost && Math.hypot((h.renderX + (h.leanOffsetX || 0)) - player.renderX, (h.renderY + (h.leanOffsetY || 0)) - player.renderY) < 20) {
+            h.isDead = true;
+            seeMino = false;
+        }
+
+        if(seeMino) {
+            if(!h.fleeMode) {
+                h.lastSeenPlayer = {x: player.gridX, y: player.gridY};
+                h.cornerTile = {x: h.gridX, y: h.gridY};
+            }
+            h.fleeMode = true;
+            h.fleeEndTime = now + 1500;
+            h.peekMode = false;
+            h.peekStep = 'none';
+            h.leanOffsetX = 0;
+            h.leanOffsetY = 0;
+        }
+
+        if(!h.isMoving && !h.isDead) {
+            let onTrash = trashCans.some(tc => tc.x === h.gridX && tc.y === h.gridY);
+
+            if(seeMino && onTrash) { 
+                h.isHidden = true; 
+            } else {
+                h.isHidden = false;
+                
+                if(h.fleeMode) {
+                    let avoidX = h.lastSeenPlayer ? h.lastSeenPlayer.x : player.gridX;
+                    let avoidY = h.lastSeenPlayer ? h.lastSeenPlayer.y : player.gridY;
+                    let dirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
+                    dirs.sort((a,b) => Math.hypot(h.gridX+b[0]-avoidX, h.gridY+b[1]-avoidY) - Math.hypot(h.gridX+a[0]-avoidX, h.gridY+a[1]-avoidY));
+                    
+                    if(dirs[0]) {
+                        h.targetX = h.gridX + dirs[0][0]; h.targetY = h.gridY + dirs[0][1]; 
+                        h.isMoving = true; h.moveStart = now; h.path = [];
+                    }
+
+                    if(!seeMino && now >= h.fleeEndTime) {
+                        h.fleeMode = false;
+                        h.peekMode = true;
+                        h.peekStep = 'returning';
+                    }
+                } else if(h.peekMode) {
+                    if(h.peekStep === 'returning') {
+                        let p = getPath(h.gridX, h.gridY, h.cornerTile.x, h.cornerTile.y);
+                        if(p.length > 1) {
+                            h.targetX = p[0].x; h.targetY = p[0].y;
+                            h.isMoving = true; h.moveStart = now;
+                        } else if(p.length === 1 || p.length === 0) {
+                            h.peekStep = 'leaning';
+                            h.peekTimer = now;
+                            let dx = h.cornerTile.x - h.gridX;
+                            let dy = h.cornerTile.y - h.gridY;
+                            if(dx===0 && dy===0) { h.peekMode = false; } 
+                            else { h.peekDir = {x: dx, y: dy}; }
+                        } else {
+                            h.peekMode = false;
+                        }
+                    } else if(h.peekStep === 'leaning') {
+                        let elapsed = now - h.peekTimer;
+                        if(elapsed >= 500) {
+                            h.peekStep = 'observing';
+                            h.peekTimer = now;
+                            h.leanOffsetX = h.peekDir.x * (tileSize * 0.5);
+                            h.leanOffsetY = h.peekDir.y * (tileSize * 0.5);
+                        } else {
+                            let t = elapsed / 500;
+                            h.leanOffsetX = h.peekDir.x * (tileSize * 0.5 * t);
+                            h.leanOffsetY = h.peekDir.y * (tileSize * 0.5 * t);
+                        }
+                    } else if(h.peekStep === 'observing') {
+                        h.leanOffsetX = h.peekDir.x * (tileSize * 0.5);
+                        h.leanOffsetY = h.peekDir.y * (tileSize * 0.5);
+                        let elapsed = now - h.peekTimer;
+                        if(elapsed >= 1500) {
+                            h.peekStep = 'finished';
+                            h.peekMode = false;
+                            h.cornerTile = null;
+                            h.leanOffsetX = 0;
+                            h.leanOffsetY = 0;
+                            h.targetX = h.gridX + h.peekDir.x;
+                            h.targetY = h.gridY + h.peekDir.y;
+                            h.isMoving = true; h.moveStart = now;
+                        }
+                    }
+                } else {
+                    if(h.path.length === 0 || (h.path.length > 0 && (h.path[h.path.length-1].x !== mazeCenter.x || h.path[h.path.length-1].y !== mazeCenter.y))) {
+                        h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
+                    }
+                    let next = h.path.shift();
+                    if(next) { h.targetX = next.x; h.targetY = next.y; h.isMoving = true; h.moveStart = now; } 
+                    else {
+                        let ds = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
+                        if(ds.length > 0) { let f = ds[Math.floor(Math.random()*ds.length)]; h.targetX = h.gridX + f[0]; h.targetY = h.gridY + f[1]; h.isMoving = true; h.moveStart = now; }
+                    }
+                }
+            }
+        } else if(h.isMoving) {
+            let speed = baseHumanSpeed / (difficultyMult * 1.1);
+            if(h.slowTimer > now) speed /= 2;
+            let t=Math.min((now-h.moveStart)/speed, 1);
+            h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
+            if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; handleTrap(h, false); }
+        }
+    });
+
+    function handleTrap(entity, isPlayer) {
+        if(isPlayer && player.isGhost) return;
+        let tidx = traps.findIndex(t => t.gridX === entity.gridX && t.gridY === entity.gridY);
+        if(tidx !== -1) {
+            let trap = traps[tidx];
+            if(trap.type === 'lethal') {
+                if(isPlayer && !uMinoMode) { handleDeath(); }
+                else if(!isPlayer) entity.isDead = true;
+            } else if(trap.type === 'glue') { entity.slowTimer = now + 5000; } 
+            else if(trap.type === 'noise') {
+                if(isPlayer && !uMinoMode) monsters.forEach(m => m.noiseTarget = {gridX: trap.gridX, gridY: trap.gridY});
+                else if(!isPlayer && uMinoMode) player.noiseTarget = {gridX: trap.gridX, gridY: trap.gridY, timer: now + 5000};
+            }
+            traps.splice(tidx, 1);
+        }
+    }
+
+    if(!winCinematic && !player.isMoving && !player.isSniffStunned && !player.isHidden) {
+        let dx=0, dy=0; if(window.keys?.w) dy=-1; else if(window.keys?.s) dy=1; else if(window.keys?.a) dx=-1; else if(window.keys?.d) dx=1;
+        if(dx||dy){ 
+            let nx=player.gridX+dx, ny=player.gridY+dy; 
+            // GHOSTS CAN WALK THROUGH WALLS!
+            if(grid[ny] && (grid[ny][nx]===0 || player.isGhost)){player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny;} 
+        }
+    } else if(!winCinematic && player.isMoving) {
+        let speed = (uMinoMode ? baseHumanSpeed*0.7 : baseHumanSpeed);
+        if(uMinoMode && player.sniffTarget) speed /= 2.5;
+        if(player.slowTimer > now) speed *= 2;
+        let t=Math.min((now-player.moveStart)/speed, 1);
+        player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
+        if(t===1){ player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false; handleTrap(player, true); }
+    }
+}
+
+function drawArrows(ox, oy, entity, now) {
+    ctx.save(); ctx.translate(entity.renderX + ox + 20, entity.renderY + oy + 20); ctx.rotate(now / 200);
+    ctx.fillStyle = "rgba(255, 0, 0, 0.8)";
+    for(let i=0; i<3; i++) {
+        ctx.rotate((Math.PI*2)/3);
+        ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(8, -15); ctx.lineTo(-8, -15); ctx.fill();
+    }
+    ctx.restore();
+}
+
+function loop(now) {
+    if(!isRunning) return; update(now);
+    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+    const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
+    
+    if(cinematic && cinematic.isSlashing) {
+        ctx.fillStyle = (Math.floor(now / 50) % 2 === 0) ? "rgba(255,255,255,0.9)" : "rgba(255,0,0,0.8)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+    } else {
+        ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+    
+    blood.forEach(b => { ctx.fillStyle = "rgba(130, 0, 0, 0.7)"; ctx.fillRect(b.x*tileSize+ox, b.y*tileSize+oy, tileSize, tileSize); });
+
+    ctx.fillStyle="#B3B3B3";
+    for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize);
+    
+    if(uMinoMode) {
+        humans.forEach(h => {
+            if(h.isBleeding && !h.isDead && !h.isHidden) {
+                let p = getPath(player.gridX, player.gridY, h.gridX, h.gridY);
+                if(p.length > 0) {
+                    ctx.strokeStyle = "rgba(139,0,0,0.6)"; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20);
+                    p.forEach(pt => ctx.lineTo(pt.x*tileSize+ox+20, pt.y*tileSize+oy+20)); ctx.stroke();
+                }
+            }
+        });
+    }
+
+    trashCans.forEach(tc => { ctx.fillStyle = "#222"; ctx.fillRect(tc.x*tileSize+ox+5, tc.y*tileSize+oy+5, tileSize-10, tileSize-10); ctx.fillStyle = "#111"; ctx.fillRect(tc.x*tileSize+ox+10, tc.y*tileSize+oy+10, tileSize-20, tileSize-20); });
+    traps.forEach(t => { if(t.type === 'glue') ctx.fillStyle = "rgba(100, 100, 100, 0.6)"; else if(t.type === 'noise') ctx.fillStyle = "rgba(200, 200, 50, 0.6)"; else if(t.type === 'lethal') ctx.fillStyle = "#8b4513"; ctx.fillRect(t.gridX*tileSize+ox+5, t.gridY*tileSize+oy+5, tileSize-10, tileSize-10); });
+    items.forEach(it => { ctx.fillStyle = it.type === 'gold' ? "#ffd700" : "#ff8c00"; ctx.beginPath(); ctx.arc(it.gridX*tileSize+ox+20, it.gridY*tileSize+oy+20, 8, 0, Math.PI*2); ctx.fill(); });
+    ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+12, mazeCenter.y*tileSize+oy+12, 16, 16);
+
+    monsters.forEach(m => { ctx.fillStyle = m.isSniffStunned ? "#500" : "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
+    
+    humans.forEach(h => { 
+        if(!h.isDead && !h.isHidden) { 
+            let drawX = h.renderX + (h.leanOffsetX || 0);
+            let drawY = h.renderY + (h.leanOffsetY || 0);
+            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(drawX+ox+20, drawY+oy+20, 11, 0, Math.PI*2); ctx.fill(); 
+        } 
+    });
+
+    if(!uMinoMode && player.isHidden) { 
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 11, 0, Math.PI*2); ctx.fill(); 
+    } else { 
+        if(winCinematic && winCinematic.finished) {
+            ctx.fillStyle = "#400"; ctx.beginPath(); ctx.ellipse(canvas.width/2, canvas.height/2 + 5, 18, 10, 0, 0, Math.PI*2); ctx.fill();
+        } else {
+            // GHOST RENDERING
+            if(player.isGhost) {
+                ctx.globalAlpha = 0.5;
+                ctx.fillStyle = player.ghostType === 'dead' ? "#add8e6" : "#ffffe0";
+            } else {
+                ctx.fillStyle = uMinoMode ? (player.isSniffStunned ? "#500" : "#f00") : "#fff"; 
+            }
+            
+            ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, uMinoMode && !player.isGhost ? 16 : 11, 0, Math.PI*2); ctx.fill(); 
+            ctx.globalAlpha = 1.0;
+        }
+    }
+
+    if(cinematic && cinematic.isSlashing) {
+        ctx.strokeStyle = "rgba(200, 0, 0, 0.9)"; ctx.lineWidth = 8;
+        let cx = cinematic.tc.x * tileSize + ox + 20, cy = cinematic.tc.y * tileSize + oy + 20;
+        ctx.beginPath();
+        ctx.moveTo(cx - 35, cy - 25); ctx.lineTo(cx + 35, cy + 35);
+        ctx.moveTo(cx - 15, cy - 45); ctx.lineTo(cx + 45, cy + 15);
+        ctx.moveTo(cx - 45, cy - 5); ctx.lineTo(cx + 15, cy + 45);
+        ctx.stroke();
+    }
+
+    // FOG OF WAR (SKIPPED IF GHOST)
+    if(!fullBright && !player.isGhost && (!cinematic || !cinematic.isSlashing) && (!winCinematic || !winCinematic.finished)) {
+        let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
+        tc.fillStyle="black"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
+        
+        let bMult = gameBrightness / 50;
+        let vRad = ((uMinoMode ? 450 : 180) + visionBonus) * bMult;
+        
+        let g=tc.createRadialGradient(t.width/2,t.height/2,0,t.width/2,t.height/2,vRad);
+        g.addColorStop(0,"white"); g.addColorStop(1,"transparent"); tc.fillStyle=g; tc.beginPath(); tc.arc(t.width/2,t.height/2,vRad,0,Math.PI*2); tc.fill();
+        activeOranges.forEach(o => { let lx = o.x*tileSize+ox+20, ly = o.y*tileSize+oy+20; let og=tc.createRadialGradient(lx, ly, 0, lx, ly, 100); og.addColorStop(0,"rgba(255,140,0,1)"); og.addColorStop(1,"transparent"); tc.fillStyle=og; tc.beginPath(); tc.arc(lx, ly, 100, 0, Math.PI*2); tc.fill(); });
+        ctx.drawImage(t,0,0);
+    } else if(player.isGhost) {
+        // Om du er ghost, legger vi et svakt fargefilter over hele skjermen så du ser at du er et spøkelse (og zoomet ut vision)
+        ctx.fillStyle = player.ghostType === 'dead' ? "rgba(173, 216, 230, 0.1)" : "rgba(255, 255, 224, 0.1)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+
+    if(uMinoMode && player.isSniffActive) drawArrows(ox, oy, player, now);
+    if(!uMinoMode) monsters.forEach(m => { if(m.isSniffActive) drawArrows(ox, oy, m, now); });
+
+    if(uMinoMode && player.sniffTarget && player.isSniffActive) {
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height/2);
+        ctx.lineTo(player.sniffTarget.renderX+ox+20, player.sniffTarget.renderY+oy+20); ctx.stroke();
+    }
+
+    if(activeMinigame) {
+        ctx.fillStyle = "#222"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 + 50, 300, 30);
+        ctx.fillStyle = "red"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 + 50, activeMinigame.progress * 3, 30);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 20px Courier New"; ctx.textAlign = "center";
+        ctx.fillText("SPAM SPACEBAR / ACT!", canvas.width/2, canvas.height/2 + 45);
+    }
+
+    let anySniffing = (uMinoMode && player.isSniffStunned) || monsters.some(m => m.isSniffStunned);
+    if(anySniffing && !player.isGhost && (!winCinematic || !winCinematic.finished)) { 
+        ctx.fillStyle = "red"; ctx.font = "bold 30px Courier New"; ctx.textAlign = "center"; 
+        ctx.fillText("THE MINOTAUR IS SNIFFING AROUND... HIDE!", canvas.width/2, 60); 
+    }
+
+    requestAnimationFrame(loop);
+}
+
+window.keys = {};
+window.onkeydown=e=>{ 
+    window.keys[e.key.toLowerCase()]=true; 
+    if(e.key==='e') interact(); 
+    if(e.key===' ' && activeMinigame) {
+        let onBlood = blood.some(b => b.x === activeMinigame.tc.x && b.y === activeMinigame.tc.y);
+        activeMinigame.progress += (onBlood ? 20 : 10);
+    }
+};
+window.onkeyup=e=>{ window.keys[e.key.toLowerCase()]=false; };
+
+function interact() {
+    if(player.isGhost) return;
+    if(!uMinoMode && player.gridX === mazeCenter.x && player.gridY === mazeCenter.y) { handleEscape(); return; }
+    if(winCinematic) return;
+    
+    let onTrash = trashCans.find(tc => tc.x === player.gridX && tc.y === player.gridY);
+    if(onTrash) {
+        if(!uMinoMode) player.isHidden = !player.isHidden;
+        else if(!activeMinigame && !cinematic) {
+            let h = humans.find(hm => hm.isHidden && hm.gridX === onTrash.x && hm.gridY === onTrash.y);
+            if(h) activeMinigame = { progress: 20, human: h, tc: onTrash, lastTick: performance.now() };
+        }
+    }
+    
+    if(activeMinigame) {
+        let onBlood = blood.some(b => b.x === activeMinigame.tc.x && b.y === activeMinigame.tc.y);
+        activeMinigame.progress += (onBlood ? 20 : 10);
+    }
+
+    let idx = items.findIndex(it => it.gridX === player.gridX && it.gridY === player.gridY);
+    if(idx !== -1) {
+        if(items[idx].type === 'gold') visionBonus += 30;
+        else activeOranges.push({x: items[idx].gridX, y: items[idx].gridY});
+        items.splice(idx, 1);
+    }
+}
+
+function init(){
+    document.getElementById('mobile-cb').checked = useMobileControls;
+
+    simTouch('btn-w', 'w');
+    simTouch('btn-a', 'a');
+    simTouch('btn-s', 's');
+    simTouch('btn-d', 'd');
+    
+    let ibtn = document.getElementById('btn-interact-normal');
+    const iact = (e) => { e.preventDefault(); interact(); };
+    ibtn.addEventListener('mousedown', iact);
+    ibtn.addEventListener('touchstart', iact, {passive: false});
+
+    let ubtn = document.getElementById('umino-btn');
+    const uact = (e) => { e.preventDefault(); triggerMobileSniff(); };
+    ubtn.addEventListener('mousedown', uact);
+    ubtn.addEventListener('touchstart', uact, {passive: false});
+
+    let uactBtn = document.getElementById('umino-act-btn');
+    uactBtn.addEventListener('mousedown', iact);
+    uactBtn.addEventListener('touchstart', iact, {passive: false});
+}
+</script>
+</body>
+</html>
