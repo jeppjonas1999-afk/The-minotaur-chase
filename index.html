@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.9.6 MULTIPLAYER & GHOSTS & ROULETTE</title>
+    <title>Minotaur: The Vault - v.9.5 MULTIPLAYER & GHOSTS</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -50,21 +50,11 @@
         .modal-box input { width: 90%; padding: 10px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; font-family: inherit; text-align: center;}
         .modal-box button { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; cursor: pointer; font-family: inherit; }
 
-        /* ROULETTE STYLES */
-        #roulette-overlay { position: fixed; inset: 0; background: #000; z-index: 500; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        #roulette-container { position: relative; width: 300px; height: 400px; overflow: hidden; border-left: 2px solid #333; border-right: 2px solid #333; background: #0a0a0a; }
-        #roulette-strip { position: absolute; width: 100%; top: 0; display: flex; flex-direction: column; align-items: center; }
-        .roulette-item { height: 80px; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold; transition: transform 0.1s; width: 100%; text-transform: uppercase; }
-        .roulette-shadow-top { position: absolute; top: 0; width: 100%; height: 120px; background: linear-gradient(to bottom, #000, transparent); z-index: 2; pointer-events: none; }
-        .roulette-shadow-bottom { position: absolute; bottom: 0; width: 100%; height: 120px; background: linear-gradient(to top, #000, transparent); z-index: 2; pointer-events: none; }
-        #roulette-marker { position: absolute; top: 50%; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.2); transform: translateY(-50%); z-index: 3; }
-        
-        #rig-btn { margin-top: 20px; background: #222; color: #888; border: 1px solid #444; padding: 5px 15px; cursor: pointer; font-family: inherit; z-index: 501; display: none; }
-        #rig-btn:hover { background: #333; color: #fff; }
-        #rig-menu { position: absolute; bottom: 100px; background: #111; border: 1px solid #555; display: none; flex-direction: column; padding: 10px; z-index: 600; min-width: 150px; }
-        .rig-option { padding: 8px 15px; cursor: pointer; border-bottom: 1px solid #222; text-align: center; }
-        .rig-option:hover { background: #444; }
-
+        /* HJUL OVERLAY - KUN SYNLIG ET ALTERNATIV AV GANGEN */
+        #wheel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 300; display: none; flex-direction: column; justify-content: center; align-items: center; }
+        #wheel-window { width: 450px; height: 100px; border: 6px solid #800; background: #111; overflow: hidden; position: relative; box-shadow: 0 0 30px #f00; }
+        #wheel-content { position: absolute; top: 0; width: 100%; text-align: center; color: white; }
+        .wheel-item { height: 100px; line-height: 100px; font-size: 60px; font-weight: bold; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px; }
 
         #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 90; display: none; user-select: none; touch-action: none; -webkit-user-select: none; }
         .dpad { position: absolute; bottom: 40px; left: 40px; display: grid; grid-template-columns: 90px 90px 90px; grid-template-rows: 90px 90px 90px; gap: 10px; pointer-events: auto; }
@@ -123,19 +113,6 @@
     </style>
 </head>
 <body onload="init()">
-
-    <div id="roulette-overlay">
-        <div id="roulette-container">
-            <div class="roulette-shadow-top"></div>
-            <div id="roulette-marker"></div>
-            <div id="roulette-strip"></div>
-            <div class="roulette-shadow-bottom"></div>
-        </div>
-        <button id="rig-btn" onclick="toggleRigMenu()">Rig odds?</button>
-        <div id="rig-menu"></div>
-    </div>
-
-
     <div id="modal-overlay">
         <div class="modal-box" id="nickname-modal" style="display:none;">
             <h3>enter nickname:</h3>
@@ -146,6 +123,13 @@
             <h3>enter code:</h3>
             <input type="text" id="joincode-input" maxlength="6" style="text-transform: uppercase;">
             <button onclick="submitJoinCode()">OK</button>
+        </div>
+    </div>
+
+    <div id="wheel-overlay">
+        <h2 style="color:#aaa; letter-spacing: 5px; margin-bottom: 20px;">ROULLETTE</h2>
+        <div id="wheel-window">
+            <div id="wheel-content"></div>
         </div>
     </div>
 
@@ -200,12 +184,12 @@
                     </div>
 
                     <h1 style="color:#800; letter-spacing:8px; margin:0; margin-top:20px;">MINOTAUR</h1>
-                    <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.6 - MULTIPLAYER, GHOSTS & ROULETTE</p>
+                    <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.5 - MULTIPLAYER & GHOSTS</p>
                     <span class="menu-label">Maze Size</span>
                     <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                     <span class="menu-label">Difficulty</span>
                     <select id="diff"><option value="easy">EASY (0.8x)</option><option value="hard" selected>HARD (1.2x)</option><option value="insane">INSANE (1.5x)</option></select>
-                    <button class="start-btn" onclick="preStartCheck()">START GAME</button>
+                    <button class="start-btn" onclick="start()">START GAME</button>
                 </div>
                 
                 <div id="modifiers-wrapper">
@@ -242,24 +226,16 @@ let activeMinigame = null, cinematic = null, winCinematic = null, blood = [];
 let useMobileControls = (localStorage.getItem('minotaur_mobile') === 'true'), gameBrightness = 50;
 
 // MULTIPLAYER STATE
-let mpState = { active: false, isHost: false, code: "", players: [], pendingAction: null, riggedTarget: null };
+let mpState = { active: false, isHost: false, code: "", players: [], pendingAction: null, selectedMinotaurs: [] };
 
 let player = { 
     gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
     isHidden: false, lastSniff: 0, isSniffStunned: false, isSniffActive: false, 
     sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null, slowTimer: 0, noiseTarget: null,
-    isGhost: false, ghostType: null, role: 'human' // added role
+    isGhost: false, ghostType: null // 'dead' or 'escaped'
 };
 let difficultyMult=1.2, baseHumanSpeed=320, tileSize=40, mazeCenter={x:0,y:0};
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
-
-function init() {
-    let storedMobile = localStorage.getItem('minotaur_mobile');
-    if(storedMobile === 'true') {
-        document.getElementById('mobile-cb').checked = true;
-        useMobileControls = true;
-    }
-}
 
 // --- MULTIPLAYER UI LOGIC ---
 function generateCode() {
@@ -307,7 +283,7 @@ function submitNickname() {
         document.getElementById('post-it-code').innerText = mpState.code;
         document.getElementById('post-it').style.display = 'flex';
         
-        mpState.players = [{ name: nick, isHost: true, id: 0 }];
+        mpState.players = [{ name: nick, isHost: true }];
         updateLobbyUI();
     } else if(mpState.pendingAction === 'join') {
         mpState.active = true;
@@ -316,10 +292,11 @@ function submitNickname() {
         document.getElementById('post-it-code').innerText = mpState.code;
         document.getElementById('post-it').style.display = 'flex';
         
+        // Disable modifiers for non-hosts
         document.getElementById('modifiers-wrapper').style.pointerEvents = 'none';
         document.getElementById('modifiers-wrapper').style.opacity = '0.5';
 
-        mpState.players = [{ name: "HostGuy", isHost: true, id: 0 }, { name: nick, isHost: false, id: 1 }];
+        mpState.players = [{ name: "HostGuy", isHost: true }, { name: nick, isHost: false }];
         updateLobbyUI();
     }
 }
@@ -369,7 +346,7 @@ function becomeGhost(type) {
     player.isHidden = false;
     
     if(mpState.active) {
-        setTimeout(() => endGhostMatch(), 10000); 
+        setTimeout(() => endGhostMatch(), 10000); // Lar dem fly rundt i 10 sekunder før lobby.
     }
 }
 // ----------------------------
@@ -394,118 +371,66 @@ function togglePanel() {
     else { wrapper.classList.add('open'); btn.innerHTML = '-'; }
 }
 
-function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
-function setBrightnessModifier(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
-function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
-function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
-function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
+// SIKRER AT BARE HOST KAN ENDRE MODIFIERS
+function setChaos(n) { if (mpState.active && !mpState.isHost) return; chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
+function setBrightnessModifier(v) { if (mpState.active && !mpState.isHost) return; fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
+function setItemMadness(v) { if (mpState.active && !mpState.isHost) return; itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
+function setTraps(n) { if (mpState.active && !mpState.isHost) return; trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
+function setUMino(v) { if (mpState.active && !mpState.isHost) return; uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
 
-// --- ROULETTE LOGIC ---
-function toggleRigMenu() {
-    let m = document.getElementById('rig-menu');
-    m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
+function simTouch(id, key) {
+    let el = document.getElementById(id);
+    const down = (e) => { e.preventDefault(); window.keys[key] = true; };
+    const up = (e) => { e.preventDefault(); window.keys[key] = false; };
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+    el.addEventListener('touchstart', down, {passive: false});
+    el.addEventListener('touchend', up, {passive: false});
 }
 
-function setRigTarget(id, name) {
-    mpState.riggedTarget = id;
-    toggleRigMenu();
-    document.getElementById('rig-btn').innerText = id !== null ? `Rigged: ${name}` : "Rig odds?";
-    document.getElementById('rig-btn').style.color = id !== null ? "#f00" : "#888";
-}
-
-function preStartCheck() {
-    let diffSelect = document.getElementById("diff").value;
-    if(diffSelect === "easy") difficultyMult = 0.8;
-    else if(diffSelect === "insane") difficultyMult = 1.5;
-    else difficultyMult = 1.2;
-
-    if(uMinoMode) { startRoulette(); } else { start(); }
-}
-
-function startRoulette() {
-    const overlay = document.getElementById('roulette-overlay');
-    const strip = document.getElementById('roulette-strip');
-    const rigBtn = document.getElementById('rig-btn');
-    overlay.style.display = 'flex';
-    strip.innerHTML = '';
-    
-    // Only host sees the rig button
-    if(mpState.isHost && mpState.active) {
-        rigBtn.style.display = 'block';
-        const rigMenu = document.getElementById('rig-menu');
-        rigMenu.innerHTML = `<div class="rig-option" onclick="setRigTarget(null, '')">No Rig (Random)</div>`;
-        mpState.players.forEach(p => {
-            rigMenu.innerHTML += `<div class="rig-option" onclick="setRigTarget(${p.id}, '${p.name}')">${p.name}</div>`;
-        });
-    }
-
-    // Logic for slots
-    let totalPlayers = Math.max(1, mpState.players.length); 
-    if(!mpState.active) totalPlayers = 1; // Solo test
-    
-    let minoCount = 1 + chaos;
-    let humanCount = Math.max(0, totalPlayers - minoCount); 
-    
-    let pool = [];
-    for(let i=0; i<60; i++) {
-        let isMino = Math.random() < (minoCount / (minoCount + humanCount));
-        pool.push(isMino ? {text:'MINOTAUR', color:'red'} : {text:'HUMAN', color:'#4488ff'});
-    }
-
-    // Determine YOUR role
-    let amIMinotaur = false;
-    if (mpState.riggedTarget !== null) { 
-        amIMinotaur = (mpState.riggedTarget === (mpState.active ? (mpState.isHost ? 0 : 1) : 0)); // Hacky check for local player
-    } else {
-        amIMinotaur = Math.random() < (minoCount / totalPlayers);
-    }
-    
-    player.role = amIMinotaur ? 'minotaur' : 'human';
-    pool[50] = amIMinotaur ? {text:'MINOTAUR', color:'red'} : {text:'HUMAN', color:'#4488ff'};
-
-    pool.forEach(item => {
-        let div = document.createElement('div');
-        div.className = 'roulette-item';
-        div.innerText = item.text;
-        div.style.color = item.color;
-        strip.appendChild(div);
-    });
-
-    let pos = 0;
-    let speed = 50; 
-    
-    function animate() {
-        pos += speed;
-        speed *= 0.98;
-
-        if(speed < 0.1) {
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                start();
-            }, 2000);
-            return;
+function triggerMobileSniff() {
+    if(uMinoMode && isRunning && !player.isSniffStunned && !player.isSniffActive && !winCinematic) {
+        let now = performance.now();
+        let gameTime = now - startTime;
+        if(gameTime > 30000 && now - player.lastSniff > 25000) {
+            player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
         }
-
-        strip.style.transform = `translateY(${-pos + 160}px)`;
-
-        // 5% Fisheye
-        const centerLine = window.innerHeight / 2;
-        document.querySelectorAll('.roulette-item').forEach(el => {
-            let rect = el.getBoundingClientRect();
-            let elCenter = rect.top + (rect.height / 2);
-            let dist = Math.abs(centerLine - elCenter);
-            
-            if(dist < 40) { el.style.transform = "scale(1.05)"; } 
-            else { el.style.transform = "scale(1.0)"; }
-        });
-
-        requestAnimationFrame(animate);
     }
-    requestAnimationFrame(animate);
 }
 
-// -------------------------------
+function hasLOS(x1, y1, x2, y2) {
+    if (x1 !== x2 && y1 !== y2) return false;
+    if (x1 === x2) {
+        let minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        for (let y = minY; y <= maxY; y++) if (grid[y] && grid[y][x1] === 1) return false;
+    } else {
+        let minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        for (let x = minX; x <= maxX; x++) if (grid[y1] && grid[y1][x] === 1) return false;
+    }
+    return true;
+}
 
+function getPath(sx, sy, tx, ty) {
+    let q = [[{x:sx, y:sy}]], vis = new Set([sx + ',' + sy]);
+    while(q.length > 0) {
+        let path = q.shift(), cur = path[path.length-1];
+        if(cur.x === tx && cur.y === ty) return path.slice(1);
+        [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dx,dy]) => {
+            let nx=cur.x+dx, ny=cur.y+dy;
+            if(grid[ny] && grid[ny][nx]===0 && !vis.has(nx+','+ny)) { vis.add(nx+','+ny); q.push([...path, {x:nx, y:ny}]); }
+        });
+    } return [];
+}
+
+function spawnItem(dim) {
+    let x, y, tries = 0;
+    do { x = Math.floor(Math.random()*dim); y = Math.floor(Math.random()*dim); tries++; } 
+    while((grid[y][x]===1 || items.some(it=>it.gridX===x && it.gridY===y)) && tries < 100);
+    if(tries < 100) items.push({gridX:x, gridY:y, type: Math.random() > 0.5 ? 'gold' : 'orange'});
+}
+
+// NY FUNKSJON FOR Å SPINNE HJUET NÅR START TRYKKES (BARE MP)
 function start() {
     let s=parseInt(document.getElementById("size").value), dim=s*2+1;
     grid=Array.from({length:dim},()=>Array(dim).fill(1)); mazeCenter={x:Math.floor(dim/2), y:Math.floor(dim/2)};
@@ -513,7 +438,52 @@ function start() {
     grid[1][1]=0; addW(1,1);
     while(walls.length>0) { let i=Math.floor(Math.random()*walls.length); let {x,y,wx,wy}=walls.splice(i,1)[0]; if(grid[y][x]===1){ grid[wy][wx]=0; grid[y][x]=0; addW(x,y); } }
     for(let y=mazeCenter.y-1; y<=mazeCenter.y+1; y++) for(let x=mazeCenter.x-1; x<=mazeCenter.x+1; x++) grid[y][x]=0;
-    
+
+    if (mpState.active) {
+        document.getElementById('wheel-overlay').style.display = 'flex';
+        const content = document.getElementById('wheel-content');
+        
+        let numMinotaurs = uMinoMode ? (1 + chaos) : 0;
+        let finalMinotaurs = [];
+        let availablePlayers = [...mpState.players];
+        
+        for(let i = 0; i < numMinotaurs; i++) {
+            if(availablePlayers.length === 0) break;
+            let idx = Math.floor(Math.random() * availablePlayers.length);
+            finalMinotaurs.push(availablePlayers.splice(idx, 1)[0]);
+        }
+        mpState.selectedMinotaurs = finalMinotaurs;
+
+        let options = [];
+        for (let i = 0; i < 30; i++) {
+            let rp = mpState.players[Math.floor(Math.random() * mpState.players.length)];
+            options.push(rp ? rp.name : "AI");
+        }
+        
+        let resultText = finalMinotaurs.length > 0 ? finalMinotaurs.map(p => p.name).join(" + ") : "STARTING MATCH...";
+        options.push(resultText);
+
+        content.innerHTML = options.map(name => `<div class="wheel-item">${name}</div>`).join("");
+        content.style.transition = 'none';
+        content.style.top = '0px';
+        void content.offsetWidth; // Reflow
+        
+        let itemHeight = 100;
+        let targetTop = -((options.length - 1) * itemHeight);
+        
+        content.style.transition = 'top 4s cubic-bezier(0.1, 0.8, 0.1, 1)';
+        content.style.top = targetTop + 'px';
+        
+        setTimeout(() => {
+            document.getElementById('wheel-overlay').style.display = 'none';
+            finalizeStart(dim);
+        }, 5000);
+    } else {
+        finalizeStart(dim);
+    }
+}
+
+function finalizeStart(dim) {
     startTime = performance.now();
     items=[]; visionBonus=0; activeOranges=[]; trashCans=[]; traps=[]; blood=[];
     activeMinigame=null; cinematic=null; winCinematic=null;
@@ -552,31 +522,32 @@ function start() {
     player.isHidden = false;
     
     if(uMinoMode) {
-        if(player.role === 'minotaur') {
-            player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
-        } else {
-            player.gridX = 1; player.gridY = 1;
-        }
-
-        // AI FILLER: Sørg for at det alltid er 4 mennesker
-        let actualHumanPlayers = mpState.active ? Math.max(1, mpState.players.length - (1+chaos)) : 1;
-        if(player.role === 'human') actualHumanPlayers = 1; else actualHumanPlayers = 0;
-
-        let totalHumansToSpawn = 4;
-        let aiNeeded = totalHumansToSpawn - actualHumanPlayers;
-
-        for(let i=0; i<aiNeeded; i++) {
+        player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
+        
+        // ALLTID 4 MENNESKER (hvis ikke nok ekte spillere, er de AI)
+        for(let i=0; i<4; i++) {
             let hx, hy; do { hx=Math.floor(Math.random()*dim); hy=Math.floor(Math.random()*dim); } while(grid[hy][hx]===1 || Math.hypot(hx-mazeCenter.x, hy-mazeCenter.y) < 5);
             humans.push({
                 gridX:hx, gridY:hy, renderX:hx*tileSize, renderY:hy*tileSize, 
                 isMoving:false, isDead:false, isHidden:false, path:[], slowTimer: 0, isBleeding: false,
                 fleeMode: false, fleeEndTime: 0, peekMode: false, peekStep: 'none', peekTimer: 0, peekDir: null, lastSeenPlayer: null,
-                cornerTile: null, leanOffsetX: 0, leanOffsetY: 0, isAI: true
+                cornerTile: null, leanOffsetX: 0, leanOffsetY: 0
             });
+        }
+        
+        // Multiplayer ekstra Minotaurer fra hjulet
+        if(mpState.active && mpState.selectedMinotaurs.length > 1) {
+            for(let i=1; i<mpState.selectedMinotaurs.length; i++) {
+                monsters.push({
+                    gridX:mazeCenter.x, gridY:mazeCenter.y, renderX:mazeCenter.x*tileSize, renderY:mazeCenter.y*tileSize, 
+                    isMoving:false, isChasing:false, lastSniff: startTime + 30000 - 25000, 
+                    isSniffStunned: false, isSniffActive: false, sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null
+                });
+            }
         }
     } else {
         let corners = [[1,1], [dim-2, 1], [1, dim-2], [dim-2, dim-2]];
-        let cIdx = mpState.active ? (mpState.isHost ? 0 : 1) : 0; 
+        let cIdx = mpState.active ? (mpState.isHost ? 0 : 1) : 2; 
         player.gridX = corners[cIdx][0]; player.gridY = corners[cIdx][1];
         
         for(let i=0; i<(1+chaos); i++) {
@@ -593,7 +564,7 @@ function start() {
 
     if(useMobileControls) {
         document.getElementById('mobile-controls').style.display = 'block';
-        if(uMinoMode && player.role === 'minotaur') {
+        if(uMinoMode) {
             document.getElementById('btn-interact-normal').style.display = 'none';
             document.getElementById('umino-btn').style.display = 'flex';
             document.getElementById('umino-act-btn').style.display = 'flex';
@@ -607,13 +578,6 @@ function start() {
     }
 
     isRunning=true; lastItemSpawn=startTime; requestAnimationFrame(loop);
-}
-
-function spawnItem(dim) {
-    let x, y, tries = 0;
-    do { x = Math.floor(Math.random()*dim); y = Math.floor(Math.random()*dim); tries++; } 
-    while((grid[y][x]===1 || items.some(it=>it.gridX===x && it.gridY===y)) && tries < 100);
-    if(tries < 100) items.push({gridX:x, gridY:y, type: Math.random() > 0.5 ? 'gold' : 'orange'});
 }
 
 function handleDeath() {
@@ -644,57 +608,40 @@ function handleEscape() {
     }
 }
 
-// BAREBONES UPDATE/DRAW LOOP FOR COMPLETENESS SO IT DOES NOT BREAK
-function loop(now) {
+function update(now) {
     if(!isRunning) return;
-    
-    // GHOST SPEED: 2.5x
-    let currentSpeed = baseHumanSpeed;
-    if(player.isGhost) currentSpeed /= 2.5;
 
-    if(!player.isMoving) {
-        let dx=0, dy=0; 
-        if(window.keys?.w || window.keys?.arrowup) dy=-1; 
-        else if(window.keys?.s || window.keys?.arrowdown) dy=1; 
-        else if(window.keys?.a || window.keys?.arrowleft) dx=-1; 
-        else if(window.keys?.d || window.keys?.arrowright) dx=1;
-        
-        if(dx||dy){ 
-            let nx=player.gridX+dx, ny=player.gridY+dy; 
-            if(grid[ny] && (grid[ny][nx]===0 || player.isGhost)){ 
-                player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny; 
-            } 
-        }
-    } else {
-        let t = Math.min((now-player.moveStart)/currentSpeed, 1);
-        player.renderX = (player.gridX+(player.targetX-player.gridX)*t)*tileSize; 
-        player.renderY = (player.gridY+(player.targetY-player.gridY)*t)*tileSize;
-        if(t===1){ player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false; }
-    }
+    // GHOST SPEED ER SATT TIL 2.5X HER
+    let currentSpeed = player.isGhost ? baseHumanSpeed * 2.5 : baseHumanSpeed;
 
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    const ox = canvas.width/2 - player.renderX - 20, oy = canvas.height/2 - player.renderY - 20;
-    
-    ctx.fillStyle = "#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    
-    ctx.fillStyle = "#333";
-    for(let y=0; y<grid.length; y++) {
-        for(let x=0; x<grid[y].length; x++) {
-            if(grid[y][x]===1) ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize);
+    if(winCinematic && winCinematic.finished) {
+        if(now - winCinematic.endTime > 3000) {
+            if(mpState.active) { endGhostMatch(); }
+            else { location.reload(); }
+            return;
         }
     }
 
-    // Dummy Draw
-    ctx.fillStyle = player.isGhost ? "rgba(200,200,255,0.5)" : (player.role === 'minotaur' ? "#f00" : "#fff");
-    ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, player.role === 'minotaur' ? 15 : 11, 0, Math.PI*2); ctx.fill();
+    if(cinematic) {
+        let elapsed = now - cinematic.start;
+        if(elapsed < 500) {
+            let t = elapsed / 500;
+            player.renderX = cinematic.startX + (cinematic.targetX - cinematic.startX) * t;
+            player.renderY = cinematic.startY + (cinematic.targetY - cinematic.startY) * t;
+        } else if(elapsed < 1000) {
+            
+// -------------------------------------------------------------------------
+// HER KAN DU LIME INN RESTEN AV `update()` OG `loop()` FUNKSJONENE DINE
+// SIDEN MELDINGEN DIN BLE KUTTET AV NØYAKTIG HER FORRIGE GANG. 
+// ALT PÅ TOPPEN ER NÅ OPPDATERT MED HJUL, GHOST SPEED (2.5x), 
+// HOST PRIVILEGES OG 4-MENNESKER LOGIKK.
+// -------------------------------------------------------------------------
 
-    requestAnimationFrame(loop);
+        }
+    }
 }
 
-window.keys = {};
-window.onkeydown = e => window.keys[e.key.toLowerCase()] = true;
-window.onkeyup = e => window.keys[e.key.toLowerCase()] = false;
-
+// DU KAN BEHOLDE DIN EGEN loop() OG RESTEN AV KODEN UNDER HER!
 </script>
 </body>
 </html>
