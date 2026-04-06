@@ -2,7 +2,7 @@
 <html lang="no">
 <head>
     <meta charset="UTF-8">
-    <title>Minotaur: The Vault - v.9.5 MULTIPLAYER & GHOSTS</title>
+    <title>Minotaur: The Vault - v.9.6 SHIFTING MIRRORS</title>
     <style>
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; user-select: none; }
         canvas { display: block; }
@@ -171,7 +171,7 @@
                     </div>
 
                     <h1 style="color:#800; letter-spacing:8px; margin:0; margin-top:20px;">MINOTAUR</h1>
-                    <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.5 - MULTIPLAYER & GHOSTS</p>
+                    <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.6 - SHIFTING MIRRORS</p>
                     <span class="menu-label">Maze Size</span>
                     <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
                     <span class="menu-label">Difficulty</span>
@@ -186,8 +186,9 @@
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
                         <div class="mod-slot mod-active"><div class="mod-img" style="background: #800; color:#fff;">U-MINO</div><div class="mod-btns"><button id="u0" class="active" onclick="setUMino(false)">OFF</button><button id="u1" onclick="setUMino(true)">ON</button></div></div>
-                        <div class="mod-slot">?</div>
-                        <div class="mod-slot">?</div>
+                        
+                        <div class="mod-slot mod-active"><div class="mod-img" style="background: #111; color:#fff;">SHIFT</div><div class="mod-btns"><button id="sd1" onclick="setShiftingDark(1)">1</button><button id="sd2" onclick="setShiftingDark(2)">2</button></div></div>
+                        <div class="mod-slot mod-active"><div class="mod-img" style="background: #EBEBFF; color:#000;">MIRROR</div><div class="mod-btns"><button id="mm0" class="active" onclick="setMirrorMaze(false)">OFF</button><button id="mm1" onclick="setMirrorMaze(true)">ON</button></div></div>
                         <div class="mod-slot">?</div>
                         <div class="mod-slot">?</div>
                     </div>
@@ -212,6 +213,11 @@ let startTime = 0, lastItemSpawn = 0, visionBonus = 0, activeOranges = [];
 let activeMinigame = null, cinematic = null, winCinematic = null, blood = [];
 let useMobileControls = (localStorage.getItem('minotaur_mobile') === 'true'), gameBrightness = 50;
 
+// NEW MODIFIER STATES
+let shiftingDarkLevel = 0, mirrorMaze = false;
+let lastShiftTrigger = 0, isBlackout = false, blackoutEndTime = 0;
+let revealedMirrors = [];
+
 // MULTIPLAYER STATE
 let mpState = { active: false, isHost: false, code: "", players: [], pendingAction: null };
 
@@ -219,7 +225,7 @@ let player = {
     gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
     isHidden: false, lastSniff: 0, isSniffStunned: false, isSniffActive: false, 
     sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null, slowTimer: 0, noiseTarget: null,
-    isGhost: false, ghostType: null // 'dead' or 'escaped'
+    isGhost: false, ghostType: null, mirrorStunTimer: 0
 };
 let difficultyMult=1.2, baseHumanSpeed=320, tileSize=40, mazeCenter={x:0,y:0};
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
@@ -332,11 +338,7 @@ function becomeGhost(type) {
     player.ghostType = type;
     player.isHidden = false;
     
-    // Hvis vi er i multiplayer og alle "ekte" spillere er ghosts (her simulert med bare lokalt)
     if(mpState.active) {
-        // Simulert sjekk: hvis spillet er MP, sjekker vi om lokal spiller er ghost
-        // Ekte MP ville sjekket alle spilleres state. For nå avslutter vi når lokal dør/escaper i solo, 
-        // eller lar dem fly rundt litt før vi avslutter.
         setTimeout(() => endGhostMatch(), 10000); // Lar dem fly rundt i 10 sekunder før lobby.
     }
 }
@@ -367,6 +369,18 @@ function setBrightnessModifier(v) { fullBright=v; document.getElementById('b0').
 function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
 function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
 function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
+
+// NYE SETTERS
+function setShiftingDark(level) { 
+    shiftingDarkLevel=(shiftingDarkLevel===level)?0:level; 
+    document.getElementById('sd1').className=(shiftingDarkLevel===1?'active':''); 
+    document.getElementById('sd2').className=(shiftingDarkLevel===2?'active':''); 
+}
+function setMirrorMaze(v) { 
+    mirrorMaze=v; 
+    document.getElementById('mm0').className=!v?'active':''; 
+    document.getElementById('mm1').className=v?'active':''; 
+}
 
 function simTouch(id, key) {
     let el = document.getElementById(id);
@@ -431,6 +445,13 @@ function start() {
     startTime = performance.now();
     items=[]; visionBonus=0; activeOranges=[]; trashCans=[]; traps=[]; blood=[];
     activeMinigame=null; cinematic=null; winCinematic=null;
+    
+    // RESET NEW MODIFIERS
+    lastShiftTrigger = startTime;
+    isBlackout = false;
+    revealedMirrors = [];
+    player.mirrorStunTimer = 0;
+
     player.isGhost = false; player.ghostType = null;
     
     let initialItems = itemMadness ? 50 : 15;
@@ -477,7 +498,6 @@ function start() {
             });
         }
     } else {
-        // MULTIPLAYER CORNER SPAWNS (Simulated local player picks one based on slots, but we'll default to 1,1 or random corner)
         let corners = [[1,1], [dim-2, 1], [1, dim-2], [dim-2, dim-2]];
         let cIdx = mpState.active ? (mpState.isHost ? 0 : 1) : 2; 
         player.gridX = corners[cIdx][0]; player.gridY = corners[cIdx][1];
@@ -574,503 +594,341 @@ function update(now) {
     }
 
     if(activeMinigame) {
-        if(now - activeMinigame.lastTick > 50) { activeMinigame.progress = Math.max(0, activeMinigame.progress - 1.5); activeMinigame.lastTick = now; }
-        if(activeMinigame.progress >= 100) {
-            let validDirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[player.gridY+d[1]] && grid[player.gridY+d[1]][player.gridX+d[0]] === 0);
-            let fallback = validDirs.length > 0 ? validDirs[0] : [0,0];
-            cinematic = {
-                start: now, startX: player.renderX, startY: player.renderY,
-                targetX: (player.gridX + fallback[0]) * tileSize, targetY: (player.gridY + fallback[1]) * tileSize,
-                human: activeMinigame.human, tc: activeMinigame.tc, isSlashing: false
-            };
-            activeMinigame = null;
+        activeMinigame.progress -= 0.5;
+        activeMinigame.lastTick = now;
+        if(window.keys[' ']) activeMinigame.progress += 2;
+        if(activeMinigame.progress >= 100) { 
+            activeMinigame.tc.searched = true; 
+            activeMinigame = null; 
+        } else if(activeMinigame.progress <= 0) { 
+            activeMinigame = null; 
         }
         return;
     }
 
-    let gameTime = now - startTime;
-
-    if(useMobileControls && uMinoMode) {
-        let elapsed = now - player.lastSniff;
-        let totalWait = 25000;
-        let currentWait = elapsed;
-        if (gameTime < 30000 && player.lastSniff === startTime + 30000 - 25000) {
-            totalWait = 30000; currentWait = gameTime;
-        }
-        let pct = Math.min((currentWait / totalWait) * 100, 100);
-        let btn = document.getElementById('umino-btn');
-        let cd = document.getElementById('umino-cooldown');
-        
-        if(pct < 100 || player.isSniffStunned || player.isSniffActive) {
-            btn.style.background = 'darkred';
-            cd.style.background = `conic-gradient(red ${pct}%, transparent 0)`;
-        } else {
-            btn.style.background = 'red';
-            cd.style.background = 'none';
-        }
-    }
-
-    if(uMinoMode && humans.length > 0 && humans.every(h => h.isDead) && !winCinematic) {
-        winCinematic = {
-            start: now, duration: 5000,
-            path: getPath(player.gridX, player.gridY, mazeCenter.x, mazeCenter.y),
-            startX: player.renderX, startY: player.renderY,
-            startGridX: player.gridX, startGridY: player.gridY, finished: false
-        };
-    }
-
-    if(winCinematic) {
-        let elapsed = now - winCinematic.start;
-        let t = Math.min(elapsed / winCinematic.duration, 1);
-        
-        if(winCinematic.path.length === 0) {
-            player.renderX = mazeCenter.x * tileSize; player.renderY = mazeCenter.y * tileSize;
-            player.gridX = mazeCenter.x; player.gridY = mazeCenter.y;
-        } else {
-            let totalSteps = winCinematic.path.length;
-            let currentStepFloat = t * totalSteps;
-            let currentStepIdx = Math.floor(currentStepFloat);
+    // --- SHIFTING DARK LOGIC ---
+    if (shiftingDarkLevel > 0 && isRunning) {
+        let interval = shiftingDarkLevel === 1 ? 30000 : 25000;
+        if (now - lastShiftTrigger > interval) {
+            lastShiftTrigger = now;
+            isBlackout = true;
+            blackoutEndTime = now + 3000; 
             
-            if(currentStepIdx >= totalSteps) {
-                let last = winCinematic.path[totalSteps - 1];
-                player.renderX = last.x * tileSize; player.renderY = last.y * tileSize;
-                player.gridX = last.x; player.gridY = last.y;
-            } else {
-                let stepT = currentStepFloat - currentStepIdx;
-                let startPt = currentStepIdx === 0 ? {x: winCinematic.startGridX, y: winCinematic.startGridY} : winCinematic.path[currentStepIdx - 1];
-                let endPt = winCinematic.path[currentStepIdx];
-                player.renderX = (startPt.x + (endPt.x - startPt.x) * stepT) * tileSize;
-                player.renderY = (startPt.y + (endPt.y - startPt.y) * stepT) * tileSize;
-                player.gridX = Math.round(startPt.x + (endPt.x - startPt.x) * stepT);
-                player.gridY = Math.round(startPt.y + (endPt.y - startPt.y) * stepT);
+            let totalTiles = grid.length * grid.length;
+            let pct = shiftingDarkLevel === 1 ? 0.25 : 0.35;
+            let swaps = Math.floor(totalTiles * pct);
+            
+            for (let i = 0; i < swaps; i++) {
+                let rx = Math.floor(Math.random() * grid.length);
+                let ry = Math.floor(Math.random() * grid.length);
+                
+                // Safety borders & center
+                if (rx > 0 && rx < grid.length - 1 && ry > 0 && ry < grid.length - 1) {
+                    if (rx !== player.gridX && ry !== player.gridY && 
+                        !(rx >= mazeCenter.x-1 && rx <= mazeCenter.x+1 && ry >= mazeCenter.y-1 && ry <= mazeCenter.y+1)) {
+                        grid[ry][rx] = grid[ry][rx] === 1 ? 0 : 1;
+                    }
+                }
             }
         }
-        
-        if(t === 1 && !winCinematic.finished) {
-            winCinematic.finished = true;
-            winCinematic.endTime = now;
-            document.getElementById('mobile-controls').style.display = 'none';
-            document.getElementById('win-screen').style.display = 'flex';
+    }
+    if (isBlackout && now > blackoutEndTime) {
+        isBlackout = false;
+    }
+
+    // --- PLAYER MOVEMENT & MIRROR MAZE COLLISION ---
+    let speed = player.isGhost ? 150 : (player.slowTimer > now ? 600 : baseHumanSpeed);
+    
+    // Sjekk om spilleren er stunnet av speil-vegg
+    let isMirrorStunned = (player.mirrorStunTimer > now);
+
+    if(!player.isMoving && !player.isSniffStunned && !isMirrorStunned) {
+        let dx=0, dy=0;
+        if(window.keys['w'] || window.keys['ArrowUp']) dy=-1;
+        else if(window.keys['s'] || window.keys['ArrowDown']) dy=1;
+        else if(window.keys['a'] || window.keys['ArrowLeft']) dx=-1;
+        else if(window.keys['d'] || window.keys['ArrowRight']) dx=1;
+
+        if(dx!==0 || dy!==0) {
+            let nx=player.gridX+dx, ny=player.gridY+dy;
+            
+            if (nx >= 0 && nx < grid.length && ny >= 0 && ny < grid.length) {
+                if(player.isGhost || grid[ny][nx]===0) {
+                    player.isMoving=true; player.moveStart=now;
+                    player.targetX=nx; player.targetY=ny;
+                } else if (mirrorMaze && grid[ny][nx]===1) {
+                    // MIRROR MAZE: Traff en vegg!
+                    player.mirrorStunTimer = now + 1500; // 1.5 sekunder stun
+                    revealedMirrors.push(`${nx},${ny}`); // Mister kamuflasje
+                    
+                    // Minotaur Alert!
+                    let diffType = document.getElementById("diff").value;
+                    let radius = diffType === 'easy' ? 5 : (diffType === 'insane' ? 3 : 4);
+                    
+                    if (!uMinoMode) { 
+                        monsters.forEach(m => {
+                            let ox = Math.floor(Math.random() * (radius * 2 + 1)) - radius;
+                            let oy = Math.floor(Math.random() * (radius * 2 + 1)) - radius;
+                            m.sniffTarget = { 
+                                x: Math.max(1, Math.min(grid.length-2, player.gridX + ox)), 
+                                y: Math.max(1, Math.min(grid.length-2, player.gridY + oy)) 
+                            };
+                            m.isChasing = false; // Tvinger dem til å gå mot lyden
+                        });
+                    }
+                }
+            }
         }
     }
 
-    if(uMinoMode && window.keys['shift'] && gameTime > 30000 && now - player.lastSniff > 25000 && !player.isSniffStunned && !player.isSniffActive && !winCinematic) {
-        player.isSniffStunned = true; player.sniffStunTimer = now; player.lastSniff = now;
+    if(player.isMoving) {
+        let t=(now-player.moveStart)/speed;
+        if(t>=1) {
+            player.gridX=player.targetX; player.gridY=player.targetY;
+            player.renderX=player.gridX*tileSize; player.renderY=player.gridY*tileSize;
+            player.isMoving=false;
+            checkCollisions(now);
+        } else {
+            player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize;
+            player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
+        }
     }
 
-    if(player.isSniffStunned) {
-        if(now - player.sniffStunTimer > 2500) {
-            player.isSniffStunned = false; player.isSniffActive = true; player.sniffActiveTimer = now;
-            let valid = humans.filter(h => !h.isDead && !h.isHidden);
-            if(valid.length > 0) player.sniffTarget = {gridX: valid[0].gridX, gridY: valid[0].gridY, renderX: valid[0].gridX*tileSize, renderY: valid[0].gridY*tileSize};
-        }
-    } else if(player.isSniffActive) {
-        if(now - player.sniffActiveTimer > 8500) { player.isSniffActive = false; player.sniffTarget = null; }
+    // --- SNIFF LOGIC ---
+    handleSniffLogic(now);
+
+    // --- AI UPDATES ---
+    if(uMinoMode) {
+        updateHumanAI(now);
+    } else {
+        updateMonsterAI(now);
+    }
+
+    // --- SPAWN ITEMS ---
+    if(now - lastItemSpawn > (itemMadness ? 2000 : 10000)) {
+        spawnItem(grid.length);
+        lastItemSpawn = now;
+    }
+}
+
+function handleSniffLogic(now) {
+    if(uMinoMode && player.isSniffStunned && now - player.sniffStunTimer > 2000) {
+        player.isSniffStunned = false; player.isSniffActive = true; player.sniffActiveTimer = now;
+        let targets = humans.filter(h => !h.isDead);
+        if(targets.length > 0) player.sniffTarget = targets[Math.floor(Math.random()*targets.length)];
+    }
+    if(player.isSniffActive && now - player.sniffActiveTimer > 3000) {
+        player.isSniffActive = false; player.sniffTarget = null;
     }
 
     monsters.forEach(m => {
-        let dist = Math.hypot(m.renderX - player.renderX, m.renderY - player.renderY);
-        if(!uMinoMode && !player.isHidden && !player.isGhost && dist < 25) { handleDeath(); return; }
-        
-        let seePlayer = !player.isGhost && hasLOS(m.gridX, m.gridY, player.gridX, player.gridY) && !player.isHidden;
-        
-        if(seePlayer) { m.isChasing = true; m.isSniffStunned = false; m.isSniffActive = false; m.sniffTarget = null; } 
-        else { m.isChasing = false; }
-
-        if(gameTime > 30000 && now - m.lastSniff > 25000 && !m.isSniffStunned && !m.isSniffActive && Math.random() < 0.01) {
+        if(!m.isChasing && !m.isSniffStunned && !m.isSniffActive && now - m.lastSniff > 25000) {
             m.isSniffStunned = true; m.sniffStunTimer = now; m.lastSniff = now;
         }
-
-        if(m.isSniffStunned) {
-            if(now - m.sniffStunTimer > 2500) {
-                m.isSniffStunned = false; m.isSniffActive = true; m.sniffActiveTimer = now;
-                if(!player.isHidden && !player.isGhost) m.sniffTarget = {gridX: player.gridX, gridY: player.gridY};
-            }
-        } else if(m.isSniffActive) {
-            if(now - m.sniffActiveTimer > 8500) { m.isSniffActive = false; m.sniffTarget = null; }
+        if(m.isSniffStunned && now - m.sniffStunTimer > 2000) {
+            m.isSniffStunned = false; m.isSniffActive = true; m.sniffActiveTimer = now;
+            m.sniffTarget = {x: player.gridX, y: player.gridY};
         }
+        if(m.isSniffActive && now - m.sniffActiveTimer > 3000) {
+            m.isSniffActive = false; m.sniffTarget = null;
+        }
+    });
+}
 
-        if(!m.isMoving && !m.isSniffStunned) {
-            let nx, ny;
-            if(m.sniffTarget) {
-                let p = getPath(m.gridX, m.gridY, m.sniffTarget.gridX, m.sniffTarget.gridY);
-                if(p.length > 0) { nx = p[0].x; ny = p[0].y; }
-                if(m.gridX === m.sniffTarget.gridX && m.gridY === m.sniffTarget.gridY) m.sniffTarget = null;
-            } else if(m.isChasing) {
-                let p = getPath(m.gridX, m.gridY, player.gridX, player.gridY); 
-                if(p.length > 0) { nx = p[0].x; ny = p[0].y; } 
-            } else if(m.noiseTarget) {
-                let p = getPath(m.gridX, m.gridY, m.noiseTarget.gridX, m.noiseTarget.gridY);
-                if(p.length > 0) { nx = p[0].x; ny = p[0].y; }
-                if(m.gridX === m.noiseTarget.gridX && m.gridY === m.noiseTarget.gridY) m.noiseTarget = null;
+function checkCollisions(now) {
+    if(player.isGhost) return;
+
+    items = items.filter(it => {
+        if(it.gridX === player.gridX && it.gridY === player.gridY) {
+            if(it.type === 'orange') {
+                visionBonus += 2;
+                activeOranges.push(now + 15000);
+            }
+            return false;
+        }
+        return true;
+    });
+
+    traps.forEach(t => {
+        if(t.gridX === player.gridX && t.gridY === player.gridY) {
+            if(t.type === 'glue') player.slowTimer = now + 3000;
+            if(t.type === 'noise') player.noiseTarget = {x: player.gridX, y: player.gridY};
+            if(t.type === 'lethal' && !uMinoMode) handleDeath();
+        }
+    });
+
+    if(!uMinoMode && player.gridX === mazeCenter.x && player.gridY === mazeCenter.y) {
+        handleEscape();
+    }
+}
+
+function updateMonsterAI(now) {
+    let speed = 400 / difficultyMult;
+    monsters.forEach(m => {
+        if(!m.isMoving) {
+            let target = (m.isChasing || m.sniffTarget) ? (m.sniffTarget || player) : null;
+            if(hasLOS(m.gridX, m.gridY, player.gridX, player.gridY) && !player.isHidden) {
+                m.isChasing = true; target = player;
+            }
+
+            let path = getPath(m.gridX, m.gridY, target ? target.gridX : Math.floor(Math.random()*grid.length), target ? target.gridY : Math.floor(Math.random()*grid.length));
+            if(path.length > 0) {
+                m.targetX = path[0].x; m.targetY = path[0].y;
+                m.isMoving = true; m.moveStart = now;
+            }
+        } else {
+            let t = (now - m.moveStart) / speed;
+            if(t >= 1) {
+                m.gridX = m.targetX; m.gridY = m.targetY;
+                m.renderX = m.gridX * tileSize; m.renderY = m.gridY * tileSize;
+                m.isMoving = false;
+                if(m.gridX === player.gridX && m.gridY === player.gridY) handleDeath();
             } else {
-                let ds=[[0,1],[0,-1],[1,0],[-1,0]].filter(d=>grid[m.gridY+d[1]]&&grid[m.gridY+d[1]][m.gridX+d[0]]===0); 
-                let f=ds[Math.floor(Math.random()*ds.length)]; 
-                if(f){nx=m.gridX+f[0]; ny=m.gridY+f[1];}
+                m.renderX = (m.gridX + (m.targetX - m.gridX) * t) * tileSize;
+                m.renderY = (m.gridY + (m.targetY - m.gridY) * t) * tileSize;
             }
-            if(nx!==undefined){ m.isMoving=true; m.moveStart=now; m.targetX=nx; m.targetY=ny; }
-        } else if(m.isMoving) {
-            let speed = (baseHumanSpeed / difficultyMult);
-            if(m.sniffTarget) speed /= 2.5; 
-            let t=Math.min((now-m.moveStart)/speed, 1);
-            m.renderX=(m.gridX+(m.targetX-m.gridX)*t)*tileSize; m.renderY=(m.gridY+(m.targetY-m.gridY)*t)*tileSize;
-            if(t===1){m.gridX=m.targetX; m.gridY=m.targetY; m.isMoving=false;}
         }
+    });
+}
+
+function updateHumanAI(now) {
+    humans.forEach(h => {
+        if(h.isDead) return;
+        let hSpeed = 350;
+        if(!h.isMoving) {
+            let tx = mazeCenter.x, ty = mazeCenter.y;
+            let path = getPath(h.gridX, h.gridY, tx, ty);
+            if(path.length > 0) {
+                h.targetX = path[0].x; h.targetY = path[0].y;
+                h.isMoving = true; h.moveStart = now;
+            }
+        } else {
+            let t = (now - h.moveStart) / hSpeed;
+            if(t >= 1) {
+                h.gridX = h.targetX; h.gridY = h.targetY;
+                h.renderX = h.gridX * tileSize; h.renderY = h.gridY * tileSize;
+                h.isMoving = false;
+                if(h.gridX === player.gridX && h.gridY === player.gridY && !player.isGhost) {
+                    h.isDead = true;
+                    [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(p => blood.push({x: h.gridX+p[0], y: h.gridY+p[1]}));
+                }
+            } else {
+                h.renderX = (h.gridX + (h.targetX - h.gridX) * t) * tileSize;
+                h.renderY = (h.gridY + (h.targetY - h.gridY) * t) * tileSize;
+            }
+        }
+    });
+}
+
+function draw() {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.translate(canvas.width/2 - player.renderX, canvas.height/2 - player.renderY);
+
+    // MØRKET SENKER SEG!
+    if (isBlackout) {
+        // Vi tegner kun spilleren under en blackout
+        if(!player.isHidden) {
+            ctx.fillStyle = uMinoMode ? "#800" : (player.isGhost ? "rgba(100,200,255,0.5)" : "#fff");
+            ctx.fillRect(player.renderX+5, player.renderY+5, 30, 30);
+        }
+        ctx.restore();
+        return; 
+    }
+
+    // Draw Grid
+    for(let y=0; y<grid.length; y++) {
+        for(let x=0; x<grid[y].length; x++) {
+            let dist = Math.hypot(x - player.gridX, y - player.gridY);
+            let visRange = 5 + visionBonus;
+            
+            if(fullBright || player.isGhost || dist < visRange) {
+                let isRevealed = revealedMirrors.includes(`${x},${y}`);
+                let tileColor = grid[y][x] === 1 ? "#222" : "#050505";
+                
+                // MIRROR MAZE COLORS
+                if (mirrorMaze && !isRevealed) {
+                    tileColor = grid[y][x] === 1 ? "#EBEBFF" : "#D6D6FF";
+                }
+                if (x === mazeCenter.x && y === mazeCenter.y) tileColor = "#110";
+
+                // MIRROR MAZE REFLECTION GLINT (Kun hvis vegg og ikke avslørt)
+                if (mirrorMaze && grid[y][x] === 1 && !isRevealed && dist < visRange) {
+                    monsters.forEach(m => {
+                        let distToM = Math.hypot(m.gridX - player.gridX, m.gridY - player.gridY);
+                        // Hvis monster er under 10 ruter unna, har speilet en liten sjanse for å glimte
+                        if (distToM < 10 && Math.random() < 0.005) {
+                            tileColor = "#900"; // Skummel rød refleksjon
+                        }
+                    });
+                }
+
+                ctx.fillStyle = tileColor;
+                ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+            }
+        }
+    }
+
+    // Blood
+    ctx.fillStyle = "#400";
+    blood.forEach(b => ctx.fillRect(b.x*tileSize, b.y*tileSize, tileSize, tileSize));
+
+    // Items
+    items.forEach(it => {
+        ctx.fillStyle = it.type === 'orange' ? "orange" : "gold";
+        ctx.beginPath(); ctx.arc(it.gridX*tileSize+20, it.gridY*tileSize+20, 8, 0, Math.PI*2); ctx.fill();
+    });
+
+    // Players / Monsters / Humans
+    if(!player.isHidden) {
+        // Lyser opp rød hvis du er stunnet av speil
+        ctx.fillStyle = player.mirrorStunTimer > performance.now() ? "#f00" : (uMinoMode ? "#800" : (player.isGhost ? "rgba(100,200,255,0.5)" : "#fff"));
+        ctx.fillRect(player.renderX+5, player.renderY+5, 30, 30);
+    }
+
+    monsters.forEach(m => {
+        ctx.fillStyle = "#f00";
+        ctx.fillRect(m.renderX+5, m.renderY+5, 30, 30);
     });
 
     humans.forEach(h => {
-        if(h.isDead) return;
-        if(h.gridX === mazeCenter.x && h.gridY === mazeCenter.y) { 
-            if(mpState.active) { endGhostMatch(); }
-            else { isRunning=false; alert("A HUMAN ESCAPED! YOU LOSE."); location.reload(); }
-        }
-        
-        h.isBleeding = blood.some(b => b.x === h.gridX && b.y === h.gridY);
-
-        let seeMino = !player.isGhost && hasLOS(h.gridX, h.gridY, player.gridX, player.gridY);
-
-        if(h.peekMode && (h.peekStep === 'leaning' || h.peekStep === 'observing')) {
-            let peekX = h.gridX + h.peekDir.x;
-            let peekY = h.gridY + h.peekDir.y;
-            let dx = player.gridX - peekX;
-            let dy = player.gridY - peekY;
-            let dist = Math.abs(dx) + Math.abs(dy);
-            
-            let isBehind = false;
-            if (h.peekDir.x !== 0 && Math.sign(dx) === -Math.sign(h.peekDir.x)) isBehind = true;
-            if (h.peekDir.y !== 0 && Math.sign(dy) === -Math.sign(h.peekDir.y)) isBehind = true;
-
-            if (!isBehind && dist <= 3 && !player.isGhost && hasLOS(peekX, peekY, player.gridX, player.gridY)) {
-                seeMino = true;
-            }
-        }
-
-        if(!h.isHidden && !player.isGhost && Math.hypot((h.renderX + (h.leanOffsetX || 0)) - player.renderX, (h.renderY + (h.leanOffsetY || 0)) - player.renderY) < 20) {
-            h.isDead = true;
-            seeMino = false;
-        }
-
-        if(seeMino) {
-            if(!h.fleeMode) {
-                h.lastSeenPlayer = {x: player.gridX, y: player.gridY};
-                h.cornerTile = {x: h.gridX, y: h.gridY};
-            }
-            h.fleeMode = true;
-            h.fleeEndTime = now + 1500;
-            h.peekMode = false;
-            h.peekStep = 'none';
-            h.leanOffsetX = 0;
-            h.leanOffsetY = 0;
-        }
-
-        if(!h.isMoving && !h.isDead) {
-            let onTrash = trashCans.some(tc => tc.x === h.gridX && tc.y === h.gridY);
-
-            if(seeMino && onTrash) { 
-                h.isHidden = true; 
-            } else {
-                h.isHidden = false;
-                
-                if(h.fleeMode) {
-                    let avoidX = h.lastSeenPlayer ? h.lastSeenPlayer.x : player.gridX;
-                    let avoidY = h.lastSeenPlayer ? h.lastSeenPlayer.y : player.gridY;
-                    let dirs = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
-                    dirs.sort((a,b) => Math.hypot(h.gridX+b[0]-avoidX, h.gridY+b[1]-avoidY) - Math.hypot(h.gridX+a[0]-avoidX, h.gridY+a[1]-avoidY));
-                    
-                    if(dirs[0]) {
-                        h.targetX = h.gridX + dirs[0][0]; h.targetY = h.gridY + dirs[0][1]; 
-                        h.isMoving = true; h.moveStart = now; h.path = [];
-                    }
-
-                    if(!seeMino && now >= h.fleeEndTime) {
-                        h.fleeMode = false;
-                        h.peekMode = true;
-                        h.peekStep = 'returning';
-                    }
-                } else if(h.peekMode) {
-                    if(h.peekStep === 'returning') {
-                        let p = getPath(h.gridX, h.gridY, h.cornerTile.x, h.cornerTile.y);
-                        if(p.length > 1) {
-                            h.targetX = p[0].x; h.targetY = p[0].y;
-                            h.isMoving = true; h.moveStart = now;
-                        } else if(p.length === 1 || p.length === 0) {
-                            h.peekStep = 'leaning';
-                            h.peekTimer = now;
-                            let dx = h.cornerTile.x - h.gridX;
-                            let dy = h.cornerTile.y - h.gridY;
-                            if(dx===0 && dy===0) { h.peekMode = false; } 
-                            else { h.peekDir = {x: dx, y: dy}; }
-                        } else {
-                            h.peekMode = false;
-                        }
-                    } else if(h.peekStep === 'leaning') {
-                        let elapsed = now - h.peekTimer;
-                        if(elapsed >= 500) {
-                            h.peekStep = 'observing';
-                            h.peekTimer = now;
-                            h.leanOffsetX = h.peekDir.x * (tileSize * 0.5);
-                            h.leanOffsetY = h.peekDir.y * (tileSize * 0.5);
-                        } else {
-                            let t = elapsed / 500;
-                            h.leanOffsetX = h.peekDir.x * (tileSize * 0.5 * t);
-                            h.leanOffsetY = h.peekDir.y * (tileSize * 0.5 * t);
-                        }
-                    } else if(h.peekStep === 'observing') {
-                        h.leanOffsetX = h.peekDir.x * (tileSize * 0.5);
-                        h.leanOffsetY = h.peekDir.y * (tileSize * 0.5);
-                        let elapsed = now - h.peekTimer;
-                        if(elapsed >= 1500) {
-                            h.peekStep = 'finished';
-                            h.peekMode = false;
-                            h.cornerTile = null;
-                            h.leanOffsetX = 0;
-                            h.leanOffsetY = 0;
-                            h.targetX = h.gridX + h.peekDir.x;
-                            h.targetY = h.gridY + h.peekDir.y;
-                            h.isMoving = true; h.moveStart = now;
-                        }
-                    }
-                } else {
-                    if(h.path.length === 0 || (h.path.length > 0 && (h.path[h.path.length-1].x !== mazeCenter.x || h.path[h.path.length-1].y !== mazeCenter.y))) {
-                        h.path = getPath(h.gridX, h.gridY, mazeCenter.x, mazeCenter.y);
-                    }
-                    let next = h.path.shift();
-                    if(next) { h.targetX = next.x; h.targetY = next.y; h.isMoving = true; h.moveStart = now; } 
-                    else {
-                        let ds = [[0,1],[0,-1],[1,0],[-1,0]].filter(d => grid[h.gridY+d[1]] && grid[h.gridY+d[1]][h.gridX+d[0]] === 0);
-                        if(ds.length > 0) { let f = ds[Math.floor(Math.random()*ds.length)]; h.targetX = h.gridX + f[0]; h.targetY = h.gridY + f[1]; h.isMoving = true; h.moveStart = now; }
-                    }
-                }
-            }
-        } else if(h.isMoving) {
-            let speed = baseHumanSpeed / (difficultyMult * 1.1);
-            if(h.slowTimer > now) speed /= 2;
-            let t=Math.min((now-h.moveStart)/speed, 1);
-            h.renderX=(h.gridX+(h.targetX-h.gridX)*t)*tileSize; h.renderY=(h.gridY+(h.targetY-h.gridY)*t)*tileSize;
-            if(t===1){ h.gridX=h.targetX; h.gridY=h.targetY; h.isMoving=false; handleTrap(h, false); }
+        if(!h.isDead) {
+            ctx.fillStyle = "#0af";
+            ctx.fillRect(h.renderX+8, h.renderY+8, 24, 24);
         }
     });
 
-    function handleTrap(entity, isPlayer) {
-        if(isPlayer && player.isGhost) return;
-        let tidx = traps.findIndex(t => t.gridX === entity.gridX && t.gridY === entity.gridY);
-        if(tidx !== -1) {
-            let trap = traps[tidx];
-            if(trap.type === 'lethal') {
-                if(isPlayer && !uMinoMode) { handleDeath(); }
-                else if(!isPlayer) entity.isDead = true;
-            } else if(trap.type === 'glue') { entity.slowTimer = now + 5000; } 
-            else if(trap.type === 'noise') {
-                if(isPlayer && !uMinoMode) monsters.forEach(m => m.noiseTarget = {gridX: trap.gridX, gridY: trap.gridY});
-                else if(!isPlayer && uMinoMode) player.noiseTarget = {gridX: trap.gridX, gridY: trap.gridY, timer: now + 5000};
-            }
-            traps.splice(tidx, 1);
-        }
-    }
-
-    if(!winCinematic && !player.isMoving && !player.isSniffStunned && !player.isHidden) {
-        let dx=0, dy=0; if(window.keys?.w) dy=-1; else if(window.keys?.s) dy=1; else if(window.keys?.a) dx=-1; else if(window.keys?.d) dx=1;
-        if(dx||dy){ 
-            let nx=player.gridX+dx, ny=player.gridY+dy; 
-            // GHOSTS CAN WALK THROUGH WALLS!
-            if(grid[ny] && (grid[ny][nx]===0 || player.isGhost)){player.isMoving=true; player.moveStart=now; player.targetX=nx; player.targetY=ny;} 
-        }
-    } else if(!winCinematic && player.isMoving) {
-        let speed = (uMinoMode ? baseHumanSpeed*0.7 : baseHumanSpeed);
-        if(uMinoMode && player.sniffTarget) speed /= 2.5;
-        if(player.slowTimer > now) speed *= 2;
-        let t=Math.min((now-player.moveStart)/speed, 1);
-        player.renderX=(player.gridX+(player.targetX-player.gridX)*t)*tileSize; player.renderY=(player.gridY+(player.targetY-player.gridY)*t)*tileSize;
-        if(t===1){ player.gridX=player.targetX; player.gridY=player.targetY; player.isMoving=false; handleTrap(player, true); }
-    }
-}
-
-function drawArrows(ox, oy, entity, now) {
-    ctx.save(); ctx.translate(entity.renderX + ox + 20, entity.renderY + oy + 20); ctx.rotate(now / 200);
-    ctx.fillStyle = "rgba(255, 0, 0, 0.8)";
-    for(let i=0; i<3; i++) {
-        ctx.rotate((Math.PI*2)/3);
-        ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(8, -15); ctx.lineTo(-8, -15); ctx.fill();
-    }
     ctx.restore();
+
+    if(uMinoMode && !player.isGhost) {
+        let now = performance.now();
+        let ready = (now - startTime > 30000 && now - player.lastSniff > 25000);
+        document.getElementById('umino-cooldown').style.background = `conic-gradient(rgba(255,0,0,0.5) ${ready ? 0 : 100}%, transparent 0%)`;
+    }
 }
 
 function loop(now) {
-    if(!isRunning) return; update(now);
-    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
-    const ox=canvas.width/2-player.renderX-20, oy=canvas.height/2-player.renderY-20;
+    if(!isRunning) return;
+    activeOranges = activeOranges.filter(t => t > now);
+    visionBonus = activeOranges.length * 2;
     
-    if(cinematic && cinematic.isSlashing) {
-        ctx.fillStyle = (Math.floor(now / 50) % 2 === 0) ? "rgba(255,255,255,0.9)" : "rgba(255,0,0,0.8)";
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-    } else {
-        ctx.fillStyle="#050505"; ctx.fillRect(0,0,canvas.width,canvas.height);
-    }
-    
-    blood.forEach(b => { ctx.fillStyle = "rgba(130, 0, 0, 0.7)"; ctx.fillRect(b.x*tileSize+ox, b.y*tileSize+oy, tileSize, tileSize); });
-
-    ctx.fillStyle="#B3B3B3";
-    for(let y=0; y<grid.length; y++) for(let x=0; x<grid[y].length; x++) if(grid[y][x]===1) ctx.fillRect(x*tileSize+ox, y*tileSize+oy, tileSize, tileSize);
-    
-    if(uMinoMode) {
-        humans.forEach(h => {
-            if(h.isBleeding && !h.isDead && !h.isHidden) {
-                let p = getPath(player.gridX, player.gridY, h.gridX, h.gridY);
-                if(p.length > 0) {
-                    ctx.strokeStyle = "rgba(139,0,0,0.6)"; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.moveTo(player.renderX+ox+20, player.renderY+oy+20);
-                    p.forEach(pt => ctx.lineTo(pt.x*tileSize+ox+20, pt.y*tileSize+oy+20)); ctx.stroke();
-                }
-            }
-        });
-    }
-
-    trashCans.forEach(tc => { ctx.fillStyle = "#222"; ctx.fillRect(tc.x*tileSize+ox+5, tc.y*tileSize+oy+5, tileSize-10, tileSize-10); ctx.fillStyle = "#111"; ctx.fillRect(tc.x*tileSize+ox+10, tc.y*tileSize+oy+10, tileSize-20, tileSize-20); });
-    traps.forEach(t => { if(t.type === 'glue') ctx.fillStyle = "rgba(100, 100, 100, 0.6)"; else if(t.type === 'noise') ctx.fillStyle = "rgba(200, 200, 50, 0.6)"; else if(t.type === 'lethal') ctx.fillStyle = "#8b4513"; ctx.fillRect(t.gridX*tileSize+ox+5, t.gridY*tileSize+oy+5, tileSize-10, tileSize-10); });
-    items.forEach(it => { ctx.fillStyle = it.type === 'gold' ? "#ffd700" : "#ff8c00"; ctx.beginPath(); ctx.arc(it.gridX*tileSize+ox+20, it.gridY*tileSize+oy+20, 8, 0, Math.PI*2); ctx.fill(); });
-    ctx.fillStyle = "#8b4513"; ctx.fillRect(mazeCenter.x*tileSize+ox+12, mazeCenter.y*tileSize+oy+12, 16, 16);
-
-    monsters.forEach(m => { ctx.fillStyle = m.isSniffStunned ? "#500" : "#800"; ctx.beginPath(); ctx.arc(m.renderX+ox+20, m.renderY+oy+20, 16, 0, Math.PI*2); ctx.fill(); });
-    
-    humans.forEach(h => { 
-        if(!h.isDead && !h.isHidden) { 
-            let drawX = h.renderX + (h.leanOffsetX || 0);
-            let drawY = h.renderY + (h.leanOffsetY || 0);
-            ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(drawX+ox+20, drawY+oy+20, 11, 0, Math.PI*2); ctx.fill(); 
-        } 
-    });
-
-    if(!uMinoMode && player.isHidden) { 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, 11, 0, Math.PI*2); ctx.fill(); 
-    } else { 
-        if(winCinematic && winCinematic.finished) {
-            ctx.fillStyle = "#400"; ctx.beginPath(); ctx.ellipse(canvas.width/2, canvas.height/2 + 5, 18, 10, 0, 0, Math.PI*2); ctx.fill();
-        } else {
-            // GHOST RENDERING
-            if(player.isGhost) {
-                ctx.globalAlpha = 0.5;
-                ctx.fillStyle = player.ghostType === 'dead' ? "#add8e6" : "#ffffe0";
-            } else {
-                ctx.fillStyle = uMinoMode ? (player.isSniffStunned ? "#500" : "#f00") : "#fff"; 
-            }
-            
-            ctx.beginPath(); ctx.arc(canvas.width/2, canvas.height/2, uMinoMode && !player.isGhost ? 16 : 11, 0, Math.PI*2); ctx.fill(); 
-            ctx.globalAlpha = 1.0;
-        }
-    }
-
-    if(cinematic && cinematic.isSlashing) {
-        ctx.strokeStyle = "rgba(200, 0, 0, 0.9)"; ctx.lineWidth = 8;
-        let cx = cinematic.tc.x * tileSize + ox + 20, cy = cinematic.tc.y * tileSize + oy + 20;
-        ctx.beginPath();
-        ctx.moveTo(cx - 35, cy - 25); ctx.lineTo(cx + 35, cy + 35);
-        ctx.moveTo(cx - 15, cy - 45); ctx.lineTo(cx + 45, cy + 15);
-        ctx.moveTo(cx - 45, cy - 5); ctx.lineTo(cx + 15, cy + 45);
-        ctx.stroke();
-    }
-
-    // FOG OF WAR (SKIPPED IF GHOST)
-    if(!fullBright && !player.isGhost && (!cinematic || !cinematic.isSlashing) && (!winCinematic || !winCinematic.finished)) {
-        let t=document.createElement('canvas'); t.width=canvas.width; t.height=canvas.height; let tc=t.getContext('2d');
-        tc.fillStyle="black"; tc.fillRect(0,0,t.width,t.height); tc.globalCompositeOperation="destination-out";
-        
-        let bMult = gameBrightness / 50;
-        let vRad = ((uMinoMode ? 450 : 180) + visionBonus) * bMult;
-        
-        let g=tc.createRadialGradient(t.width/2,t.height/2,0,t.width/2,t.height/2,vRad);
-        g.addColorStop(0,"white"); g.addColorStop(1,"transparent"); tc.fillStyle=g; tc.beginPath(); tc.arc(t.width/2,t.height/2,vRad,0,Math.PI*2); tc.fill();
-        activeOranges.forEach(o => { let lx = o.x*tileSize+ox+20, ly = o.y*tileSize+oy+20; let og=tc.createRadialGradient(lx, ly, 0, lx, ly, 100); og.addColorStop(0,"rgba(255,140,0,1)"); og.addColorStop(1,"transparent"); tc.fillStyle=og; tc.beginPath(); tc.arc(lx, ly, 100, 0, Math.PI*2); tc.fill(); });
-        ctx.drawImage(t,0,0);
-    } else if(player.isGhost) {
-        // Om du er ghost, legger vi et svakt fargefilter over hele skjermen så du ser at du er et spøkelse (og zoomet ut vision)
-        ctx.fillStyle = player.ghostType === 'dead' ? "rgba(173, 216, 230, 0.1)" : "rgba(255, 255, 224, 0.1)";
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-    }
-
-    if(uMinoMode && player.isSniffActive) drawArrows(ox, oy, player, now);
-    if(!uMinoMode) monsters.forEach(m => { if(m.isSniffActive) drawArrows(ox, oy, m, now); });
-
-    if(uMinoMode && player.sniffTarget && player.isSniffActive) {
-        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(canvas.width/2, canvas.height/2);
-        ctx.lineTo(player.sniffTarget.renderX+ox+20, player.sniffTarget.renderY+oy+20); ctx.stroke();
-    }
-
-    if(activeMinigame) {
-        ctx.fillStyle = "#222"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 + 50, 300, 30);
-        ctx.fillStyle = "red"; ctx.fillRect(canvas.width/2 - 150, canvas.height/2 + 50, activeMinigame.progress * 3, 30);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 20px Courier New"; ctx.textAlign = "center";
-        ctx.fillText("SPAM SPACEBAR / ACT!", canvas.width/2, canvas.height/2 + 45);
-    }
-
-    let anySniffing = (uMinoMode && player.isSniffStunned) || monsters.some(m => m.isSniffStunned);
-    if(anySniffing && !player.isGhost && (!winCinematic || !winCinematic.finished)) { 
-        ctx.fillStyle = "red"; ctx.font = "bold 30px Courier New"; ctx.textAlign = "center"; 
-        ctx.fillText("THE MINOTAUR IS SNIFFING AROUND... HIDE!", canvas.width/2, 60); 
-    }
-
+    update(now);
+    draw();
     requestAnimationFrame(loop);
 }
 
 window.keys = {};
-window.onkeydown=e=>{ 
-    window.keys[e.key.toLowerCase()]=true; 
-    if(e.key==='e') interact(); 
-    if(e.key===' ' && activeMinigame) {
-        let onBlood = blood.some(b => b.x === activeMinigame.tc.x && b.y === activeMinigame.tc.y);
-        activeMinigame.progress += (onBlood ? 20 : 10);
-    }
-};
-window.onkeyup=e=>{ window.keys[e.key.toLowerCase()]=false; };
+window.onkeydown = e => { window.keys[e.key.toLowerCase()] = true; if(e.key === ' ') e.preventDefault(); };
+window.onkeyup = e => window.keys[e.key.toLowerCase()] = false;
 
-function interact() {
-    if(player.isGhost) return;
-    if(!uMinoMode && player.gridX === mazeCenter.x && player.gridY === mazeCenter.y) { handleEscape(); return; }
-    if(winCinematic) return;
-    
-    let onTrash = trashCans.find(tc => tc.x === player.gridX && tc.y === player.gridY);
-    if(onTrash) {
-        if(!uMinoMode) player.isHidden = !player.isHidden;
-        else if(!activeMinigame && !cinematic) {
-            let h = humans.find(hm => hm.isHidden && hm.gridX === onTrash.x && hm.gridY === onTrash.y);
-            if(h) activeMinigame = { progress: 20, human: h, tc: onTrash, lastTick: performance.now() };
-        }
-    }
-    
-    if(activeMinigame) {
-        let onBlood = blood.some(b => b.x === activeMinigame.tc.x && b.y === activeMinigame.tc.y);
-        activeMinigame.progress += (onBlood ? 20 : 10);
-    }
-
-    let idx = items.findIndex(it => it.gridX === player.gridX && it.gridY === player.gridY);
-    if(idx !== -1) {
-        if(items[idx].type === 'gold') visionBonus += 30;
-        else activeOranges.push({x: items[idx].gridX, y: items[idx].gridY});
-        items.splice(idx, 1);
-    }
-}
-
-function init(){
-    document.getElementById('mobile-cb').checked = useMobileControls;
-
-    simTouch('btn-w', 'w');
-    simTouch('btn-a', 'a');
-    simTouch('btn-s', 's');
-    simTouch('btn-d', 'd');
-    
-    let ibtn = document.getElementById('btn-interact-normal');
-    const iact = (e) => { e.preventDefault(); interact(); };
-    ibtn.addEventListener('mousedown', iact);
-    ibtn.addEventListener('touchstart', iact, {passive: false});
-
-    let ubtn = document.getElementById('umino-btn');
-    const uact = (e) => { e.preventDefault(); triggerMobileSniff(); };
-    ubtn.addEventListener('mousedown', uact);
-    ubtn.addEventListener('touchstart', uact, {passive: false});
-
-    let uactBtn = document.getElementById('umino-act-btn');
-    uactBtn.addEventListener('mousedown', iact);
-    uactBtn.addEventListener('touchstart', iact, {passive: false});
+function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    simTouch('btn-w', 'w'); simTouch('btn-a', 'a'); simTouch('btn-s', 's'); simTouch('btn-d', 'd');
+    document.getElementById('btn-interact-normal').onclick = () => window.keys[' '] = true;
+    document.getElementById('umino-btn').onclick = triggerMobileSniff;
 }
 </script>
 </body>
