@@ -22,19 +22,22 @@
         #settings-panel.open { max-height: 150px; padding: 15px; }
         .setting-row { font-size: 12px; margin-bottom: 15px; color: #ccc; }
         .setting-row label { display: flex; align-items: center; cursor: pointer; }
+        .setting-row input[type="range"] { width: 100%; margin-top: 5px; }
 
+        /* NYE MULTIPLAYER STYLES */
         #mp-btns { position: absolute; top: 15px; left: 55px; display: flex; gap: 5px; z-index: 10; }
         .mp-btn { background: #333; color: white; border: 1px solid #555; padding: 5px 10px; font-family: inherit; font-size: 12px; cursor: pointer; border-radius: 3px; }
         .mp-btn:hover { background: #444; }
         
         #post-it { 
             position: fixed; top: 20px; right: 30px; background: #ffe66d; color: #000; 
-            width: 120px; height: 120px; padding: 10px; box-sizing: border-box;
+            width: 100px; height: 100px; padding: 10px; box-sizing: border-box;
             transform: rotate(5deg); box-shadow: 2px 4px 6px rgba(0,0,0,0.5);
             display: none; flex-direction: column; justify-content: center; align-items: center;
-            font-family: 'Comic Sans MS', cursive, sans-serif; font-weight: bold; font-size: 14px;
+            font-family: 'Comic Sans MS', cursive, sans-serif; font-weight: bold; font-size: 18px;
             z-index: 101; text-align: center;
         }
+        #post-it::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 20px; background: rgba(0,0,0,0.05); }
 
         #lobby-slots { display: none; gap: 10px; margin-top: 15px; justify-content: center; }
         .lobby-slot { width: 60px; height: 60px; border: 2px dashed #444; background: #111; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
@@ -47,6 +50,24 @@
         .modal-box { background: #111; border: 2px solid #555; padding: 20px; text-align: center; width: 250px; }
         .modal-box input { width: 90%; padding: 10px; margin: 15px 0; background: #222; border: 1px solid #444; color: white; font-family: inherit; text-align: center;}
         .modal-box button { background: #333; color: white; border: 1px solid #555; padding: 10px 20px; cursor: pointer; font-family: inherit; }
+
+        #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 90; display: none; user-select: none; touch-action: none; -webkit-user-select: none; }
+        .dpad { position: absolute; bottom: 40px; left: 40px; display: grid; grid-template-columns: 90px 90px 90px; grid-template-rows: 90px 90px 90px; gap: 10px; pointer-events: auto; }
+        .dbtn { background: rgba(40,40,40,0.8); border: 2px solid #555; border-radius: 10px; color: white; font-size: 36px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .dbtn:active { background: rgba(80,80,80,0.9); }
+        #btn-w { grid-column: 2; grid-row: 1; }
+        #btn-a { grid-column: 1; grid-row: 2; }
+        #btn-s { grid-column: 2; grid-row: 2; }
+        #btn-d { grid-column: 3; grid-row: 2; }
+
+        .action-area { position: absolute; bottom: 80px; right: 80px; pointer-events: auto; display: flex; justify-content: center; align-items: center; width: 200px; height: 200px; }
+        #btn-interact-normal { width: 200px; height: 200px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 36px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        #btn-interact-normal:active { background: rgba(80,80,80,0.9); }
+        #umino-btn { width: 200px; height: 200px; border-radius: 50%; background: darkred; border: 4px solid #300; cursor: pointer; position: relative; overflow: hidden; display: none; justify-content: center; align-items: center; }
+        #umino-cooldown { position: absolute; inset: 0; background: conic-gradient(red 0%, transparent 0%); transform: scaleX(-1); pointer-events: none; }
+        
+        #umino-act-btn { position: absolute; top: 0px; right: -60px; width: 100px; height: 100px; border-radius: 50%; background: rgba(40,40,40,0.8); border: 2px solid #555; color: white; font-weight: bold; font-size: 24px; cursor: pointer; display: none; justify-content: center; align-items: center; }
+        #umino-act-btn:active { background: rgba(80,80,80,0.9); }
 
         #modifiers-wrapper { width: 0px; overflow: hidden; transition: width 1.75s cubic-bezier(0.68, -0.6, 0.32, 1.6); position: relative; }
         #modifiers-wrapper.open { width: 450px; }
@@ -67,9 +88,23 @@
         .start-btn { margin-top: 30px; background: #300; border-color: #600; font-weight: bold; letter-spacing: 2px; }
         .mod-slot { border: 1px dashed #222; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #333; font-size: 20px; font-weight: bold; aspect-ratio: 1; text-align: center;}
         .mod-active { border: 1px solid #444; background: #111; color: #eee; font-size: 10px; justify-content: flex-start; padding: 5px; }
+        .mod-img { background: #fff; width: 100%; aspect-ratio: 1.8; position: relative; margin-bottom: 5px; color: #000; font-weight: bold; text-align: center; line-height: 40px; font-size: 8px; }
         .mod-btns { display: flex; gap: 2px; width: 100%; }
         .mod-btns button { flex: 1; font-size: 9px; padding: 5px 0; background: #1a1a1a; color: #fff; border: 1px solid #333; cursor: pointer; }
         .mod-btns button.active { background: #800; border-color: #f00; }
+
+        #jumpscare { 
+            position: fixed; inset: 0; background: #600; color: #000; 
+            display: none; flex-direction: column; justify-content: center; align-items: center; 
+            z-index: 1000; animation: shake 0.1s infinite;
+        }
+        @keyframes shake { 0% { transform: translate(5px, 5px); } 50% { transform: translate(-5px, -5px); } 100% { transform: translate(5px, -5px); } }
+        
+        #win-screen { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); color: #800; 
+            display: none; flex-direction: column; justify-content: center; align-items: center; 
+            z-index: 1000;
+        }
     </style>
 </head>
 <body onload="init()">
@@ -87,8 +122,33 @@
     </div>
 
     <div id="post-it">
-        <span style="font-size:10px; color:#555;">MY ID/CODE:</span>
-        <span id="post-it-code" style="font-size:16px;"></span>
+        <span style="font-size:12px; font-weight:normal; color:#555;">CODE:</span>
+        <span id="post-it-code"></span>
+    </div>
+
+    <div id="jumpscare">
+        <h1 style="font-size: 80px; margin: 0;">CAUGHT!</h1>
+        <p style="font-size: 20px; font-weight: bold;">the minotaur will be well fed today</p>
+    </div>
+
+    <div id="win-screen">
+        <h1 id="win-text" style="font-size: 50px; margin: 0; letter-spacing: 5px;">minotauren er mettet for nå...</h1>
+    </div>
+
+    <div id="mobile-controls">
+        <div class="dpad">
+            <div id="btn-w" class="dbtn">↑</div>
+            <div id="btn-a" class="dbtn">←</div>
+            <div id="btn-s" class="dbtn">↓</div>
+            <div id="btn-d" class="dbtn">→</div>
+        </div>
+        <div class="action-area">
+            <div id="btn-interact-normal">ACT</div>
+            <div id="umino-act-btn">ACT</div>
+            <div id="umino-btn">
+                <div id="umino-cooldown"></div>
+            </div>
+        </div>
     </div>
 
     <div id="menu" class="overlay">
@@ -97,20 +157,40 @@
                 <div class="main-box">
                     <div id="settings-btn" onclick="toggleSettings()">⚙️</div>
                     <div id="mp-btns">
-                        <button class="mp-btn" id="btn-host" onclick="hostGame()">Host</button>
-                        <button class="mp-btn" id="btn-join" onclick="showJoin()">Join</button>
-                        <button class="mp-btn" id="btn-leave" style="display:none;" onclick="leaveGame()">Leave</button>
+                        <button class="mp-btn" id="btn-host" onclick="hostGame()">Host game</button>
+                        <button class="mp-btn" id="btn-join" onclick="showJoin()">Join game</button>
+                        <button class="mp-btn" id="btn-leave" style="display:none;" onclick="leaveGame()">Leave game</button>
                     </div>
-                    
-                    <h1 style="color:#800; letter-spacing:8px; margin-top:20px;">MINOTAUR</h1>
+                    <div id="settings-panel">
+                        <div class="setting-row">
+                            <label><input type="checkbox" id="mobile-cb" onchange="useMobileControls=this.checked; localStorage.setItem('minotaur_mobile', this.checked);" style="margin-right:8px;"> Mobile Controls</label>
+                        </div>
+                        <div class="setting-row" style="margin-bottom:0;">
+                            <span style="display:block; margin-bottom:5px;">Brightness: <span id="bright-val">50</span></span>
+                            <input type="range" id="bright-slider" min="0" max="100" value="50" oninput="gameBrightness=this.value; document.getElementById('bright-val').innerText=this.value;">
+                        </div>
+                    </div>
+
+                    <h1 style="color:#800; letter-spacing:8px; margin:0; margin-top:20px;">MINOTAUR</h1>
+                    <p style="color:#333; font-size:10px; margin-bottom:20px;">v.9.5 - MULTIPLAYER & GHOSTS</p>
                     <span class="menu-label">Maze Size</span>
                     <select id="size"><option value="15">SMALL</option><option value="25" selected>MEDIUM</option><option value="40">LARGE</option></select>
+                    <span class="menu-label">Difficulty</span>
+                    <select id="diff"><option value="easy">EASY (0.8x)</option><option value="hard" selected>HARD (1.2x)</option><option value="insane">INSANE (1.5x)</option></select>
                     <button class="start-btn" onclick="start()">START GAME</button>
                 </div>
                 
                 <div id="modifiers-wrapper">
                     <div id="modifiers-panel">
-                        <div class="mod-slot mod-active">CHAOS<div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button></div></div>
+                        <div class="mod-slot mod-active"><div class="mod-img">CHAOS</div><div class="mod-btns"><button id="c1" onclick="setChaos(1)">1</button><button id="c2" onclick="setChaos(2)">2</button><button id="c3" onclick="setChaos(3)">3</button><button id="c4" onclick="setChaos(4)">4</button></div></div>
+                        <div class="mod-slot mod-active"><div class="mod-img" style="background: #ffd700;">LIGHT</div><div class="mod-btns"><button id="b0" class="active" onclick="setBrightnessModifier(false)">OFF</button><button id="b1" onclick="setBrightnessModifier(true)">ON</button></div></div>
+                        <div class="mod-slot mod-active"><div class="mod-img" style="background: #104; color:#fff;">ITEMS</div><div class="mod-btns"><button id="m0" class="active" onclick="setItemMadness(false)">OFF</button><button id="m1" onclick="setItemMadness(true)">MAD!</button></div></div>
+                        <div class="mod-slot mod-active"><div class="mod-img" style="background: #444; color:#fff;">TRAPS</div><div class="mod-btns"><button id="t0" class="active" onclick="setTraps(0)">OFF</button><button id="t1" onclick="setTraps(1)">1</button><button id="t2" onclick="setTraps(2)">2</button></div></div>
+                        <div class="mod-slot mod-active"><div class="mod-img" style="background: #800; color:#fff;">U-MINO</div><div class="mod-btns"><button id="u0" class="active" onclick="setUMino(false)">OFF</button><button id="u1" onclick="setUMino(true)">ON</button></div></div>
+                        <div class="mod-slot">?</div>
+                        <div class="mod-slot">?</div>
+                        <div class="mod-slot">?</div>
+                        <div class="mod-slot">?</div>
                     </div>
                 </div>
                 <div id="expand-btn" onclick="togglePanel()">+</div>
@@ -128,103 +208,116 @@
     <canvas id="game"></canvas>
 
 <script>
-// --- SPILLVARIABLER ---
-let isRunning = false, grid = [], tileSize = 40;
-let player = { gridX: 1, gridY: 1, renderX: 40, renderY: 40, name: "Player" };
-const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
-window.keys = {};
+// BEHOLDER ALLE DINE VARIABLER URØRT:
+let chaos=0, fullBright=false, itemMadness=false, trapLevel=0, uMinoMode=false, isRunning=false, grid=[], items=[], trashCans=[], humans=[], monsters=[], traps=[];
+let startTime = 0, lastItemSpawn = 0, visionBonus = 0, activeOranges = [];
+let activeMinigame = null, cinematic = null, winCinematic = null, blood = [];
+let useMobileControls = (localStorage.getItem('minotaur_mobile') === 'true'), gameBrightness = 50;
 
-// --- MULTIPLAYER LOGIKK (WebRTC med PeerJS) ---
-let peer = null;
-let connections = []; // Hosten lagrer alle tilkoblinger her
-let mpState = { active: false, isHost: false, players: {} };
+let mpState = { active: false, isHost: false, code: "", players: [], pendingAction: null };
 
-function initMultiplayer(isHost, code = null) {
-    // Hvis man er host, lager vi en ID. Hvis man joiner, kobler man til ID-en.
-    peer = new Peer(isHost ? generateShortID() : undefined);
+let player = { 
+    gridX:1, gridY:1, renderX:0, renderY:0, isMoving:false, moveStart:0, 
+    isHidden: false, lastSniff: 0, isSniffStunned: false, isSniffActive: false, 
+    sniffStunTimer: 0, sniffActiveTimer: 0, sniffTarget: null, slowTimer: 0, noiseTarget: null,
+    isGhost: false, ghostType: null, id: "host" // Lagt til ID
+};
+let difficultyMult=1.2, baseHumanSpeed=320, tileSize=40, mazeCenter={x:0,y:0};
+const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 
-    peer.on('open', (id) => {
-        console.log("Peer ID:", id);
-        document.getElementById('post-it-code').innerText = id;
-        document.getElementById('post-it').style.display = 'flex';
+// --- NY MULTIPLAYER LOGIKK START (WebRTC / PeerJS) ---
+let netPeer = null; 
+let netConnections = []; // Hosten lagrer andres tilkoblinger her
+let myNetConnection = null; // Klienten lagrer sin tilkobling til hosten her
+let minPlayerId = null; 
+
+function initHostLogic() {
+    // Hosten TVINGER PeerID til å være den 6-sifrede koden
+    netPeer = new Peer(mpState.code); 
+    
+    netPeer.on('open', id => {
+        console.log("Server startet. Kode/ID:", id);
+        minPlayerId = id;
+    });
+
+    netPeer.on('connection', conn => {
+        console.log("En spiller kobler til!");
+        netConnections.push(conn);
         
-        if (!isHost && code) {
-            connectToHost(code);
-        }
-    });
+        conn.on('data', data => {
+            if(data.type === 'join') {
+                // Legg til ny spiller i hostens liste
+                mpState.players.push({ id: conn.peer, name: data.name, isHost: false, x: 0, y: 0 });
+                updateLobbyUI();
+            } else if (data.type === 'playerUpdate') {
+                // Oppdater klientens posisjon basert på ID
+                let p = mpState.players.find(pl => pl.id === conn.peer);
+                if(p) {
+                    p.x = data.x;
+                    p.y = data.y;
+                }
+            }
+        });
 
-    peer.on('connection', (conn) => {
-        // Bare hosten tar imot nye tilkoblinger her
-        connections.push(conn);
-        setupDataListener(conn);
-        console.log("Ny spiller koblet til!");
-    });
-}
-
-function generateShortID() {
-    return Math.random().toString(36).substr(2, 6).toUpperCase();
-}
-
-function connectToHost(hostId) {
-    let conn = peer.connect(hostId);
-    connections.push(conn);
-    setupDataListener(conn);
-}
-
-function setupDataListener(conn) {
-    conn.on('data', (data) => {
-        if (data.type === 'move') {
-            mpState.players[data.id] = { x: data.x, y: data.y, name: data.name };
-        }
+        conn.on('close', () => {
+            // Fjern spiller hvis de lukker vinduet
+            netConnections = netConnections.filter(c => c !== conn);
+            mpState.players = mpState.players.filter(p => p.id !== conn.peer);
+            updateLobbyUI();
+        });
     });
 }
 
-function broadcastData(data) {
-    connections.forEach(conn => {
-        if (conn.open) conn.send(data);
-    });
-}
-
-// --- UI FUNKSJONER ---
-function hostGame() {
-    mpState.pendingAction = 'host';
-    document.getElementById('modal-overlay').style.display = 'flex';
-    document.getElementById('nickname-modal').style.display = 'block';
-}
-
-function showJoin() {
-    mpState.pendingAction = 'join';
-    document.getElementById('modal-overlay').style.display = 'flex';
-    document.getElementById('join-modal').style.display = 'block';
-}
-
-function submitJoinCode() {
-    mpState.joinCode = document.getElementById('joincode-input').value.toUpperCase();
-    document.getElementById('join-modal').style.display = 'none';
-    document.getElementById('nickname-modal').style.display = 'block';
-}
-
-function submitNickname() {
-    player.name = document.getElementById('nickname-input').value || "Guest";
-    document.getElementById('modal-overlay').style.display = 'none';
+function initClientLogic(nick) {
+    // Klienter får bare en tilfeldig ID, de trenger ikke bruke room-code for seg selv
+    netPeer = new Peer(); 
     
-    if (mpState.pendingAction === 'host') {
-        mpState.isHost = true;
-        initMultiplayer(true);
-    } else {
-        mpState.isHost = false;
-        initMultiplayer(false, mpState.joinCode);
+    netPeer.on('open', id => {
+        minPlayerId = id;
+        console.log("Kobler til Host:", mpState.code);
+        
+        myNetConnection = netPeer.connect(mpState.code);
+        
+        myNetConnection.on('open', () => {
+            console.log("Tilkoblet!");
+            // Si ifra til host at vi er her
+            myNetConnection.send({ type: 'join', name: nick });
+        });
+
+        myNetConnection.on('data', data => {
+            if(data.type === 'serverSync') {
+                // Hosten sender hele listen med spillere og posisjoner tilbake til klienten
+                mpState.players = data.players;
+                updateLobbyUI();
+            }
+        });
+    });
+}
+
+function broadcastState() {
+    // Dette skal bare Hosten gjøre: Sende oppdatert liste til alle tilkoblede klienter
+    if (mpState.isHost && netConnections.length > 0) {
+        let syncData = { type: 'serverSync', players: mpState.players };
+        netConnections.forEach(conn => {
+            if(conn.open) conn.send(syncData);
+        });
     }
-    
-    document.getElementById('btn-host').style.display = 'none';
-    document.getElementById('btn-join').style.display = 'none';
-    document.getElementById('btn-leave').style.display = 'inline-block';
 }
+// --- NY MULTIPLAYER LOGIKK SLUTT ---
 
-// --- SPILLMOTOR ---
+
 function init() {
+    window.keys = {};
     window.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
     window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+    
+    simTouch('btn-w', 'w'); simTouch('btn-a', 'a'); simTouch('btn-s', 's'); simTouch('btn-d', 'd');
+    
+    document.getElementById('mobile-cb').checked = useMobileControls;
+    document.getElementById('bright-slider').value = gameBrightness;
+    document.getElementById('bright-val').innerText = gameBrightness;
+
+    window.addEventListener('resize', resize);
     resize();
 }
 
@@ -233,84 +326,221 @@ function resize() {
     canvas.height = window.innerHeight;
 }
 
-function start() {
-    generateMaze(parseInt(document.getElementById("size").value));
-    isRunning = true;
-    document.getElementById("menu").style.display = "none";
-    requestAnimationFrame(loop);
+// MULTIPLAYER UI LOGIC
+function generateCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for(let i=0; i<6; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+    return result;
 }
 
-function generateMaze(size) {
-    let dim = size * 2 + 1;
-    grid = Array.from({length: dim}, () => Array(dim).fill(1));
-    for(let y=1; y<dim; y+=2) for(let x=1; x<dim; x+=2) grid[y][x] = 0; // Enkel grid for demo
+function hostGame() {
+    mpState.pendingAction = 'host';
+    document.getElementById('modal-overlay').style.display = 'flex';
+    document.getElementById('nickname-modal').style.display = 'block';
+    document.getElementById('join-modal').style.display = 'none';
 }
 
-function update() {
-    let moved = false;
-    if (keys['w'] && grid[player.gridY-1][player.gridX] === 0) { player.gridY--; moved = true; }
-    if (keys['s'] && grid[player.gridY+1][player.gridX] === 0) { player.gridY++; moved = true; }
-    if (keys['a'] && grid[player.gridY][player.gridX-1] === 0) { player.gridX--; moved = true; }
-    if (keys['d'] && grid[player.gridY][player.gridX+1] === 0) { player.gridX++; moved = true; }
+function showJoin() {
+    mpState.pendingAction = 'join';
+    document.getElementById('modal-overlay').style.display = 'flex';
+    document.getElementById('join-modal').style.display = 'block';
+    document.getElementById('nickname-modal').style.display = 'none';
+}
 
-    if (moved) {
-        player.renderX = player.gridX * tileSize;
-        player.renderY = player.gridY * tileSize;
-        // Send posisjon til andre spillere
-        if (peer && peer.id) {
-            broadcastData({
-                type: 'move',
-                id: peer.id,
-                x: player.renderX,
-                y: player.renderY,
-                name: player.name
-            });
-        }
-        keys = {}; // Hindre turbo-fart
+function submitJoinCode() {
+    let code = document.getElementById('joincode-input').value.toUpperCase();
+    if(code.length > 0) {
+        document.getElementById('join-modal').style.display = 'none';
+        document.getElementById('nickname-modal').style.display = 'block';
     }
+}
+
+function submitNickname() {
+    let nick = document.getElementById('nickname-input').value || "Player";
+    document.getElementById('modal-overlay').style.display = 'none';
+    document.getElementById('btn-host').style.display = 'none';
+    document.getElementById('btn-join').style.display = 'none';
+    document.getElementById('btn-leave').style.display = 'inline-block';
+    document.getElementById('lobby-slots').style.display = 'flex';
+
+    if(mpState.pendingAction === 'host') {
+        mpState.active = true;
+        mpState.isHost = true;
+        mpState.code = generateCode();
+        document.getElementById('post-it-code').innerText = mpState.code;
+        document.getElementById('post-it').style.display = 'flex';
+        
+        // Sørg for at hosten har riktig struktur i player-lista
+        mpState.players = [{ id: "host", name: nick, isHost: true, x: 0, y: 0 }];
+        updateLobbyUI();
+        
+        // START HOST SERVER PÅ DENNE NETTLESEREN
+        initHostLogic();
+
+    } else if(mpState.pendingAction === 'join') {
+        mpState.active = true;
+        mpState.isHost = false;
+        mpState.code = document.getElementById('joincode-input').value.toUpperCase();
+        document.getElementById('post-it-code').innerText = mpState.code;
+        document.getElementById('post-it').style.display = 'flex';
+        document.getElementById('modifiers-wrapper').style.pointerEvents = 'none';
+        document.getElementById('modifiers-wrapper').style.opacity = '0.5';
+        
+        // Klienten vet ikke navnet på Hosten enda, det oppdateres når Host sender Sync
+        mpState.players = []; 
+        updateLobbyUI();
+        
+        // KOBLE TIL HOSTEN
+        initClientLogic(nick);
+    }
+}
+
+function leaveGame() {
+    mpState.active = false;
+    mpState.isHost = false;
+    mpState.players = [];
+    document.getElementById('btn-host').style.display = 'inline-block';
+    document.getElementById('btn-join').style.display = 'inline-block';
+    document.getElementById('btn-leave').style.display = 'none';
+    document.getElementById('post-it').style.display = 'none';
+    document.getElementById('lobby-slots').style.display = 'none';
+    document.getElementById('modifiers-wrapper').style.pointerEvents = 'auto';
+    document.getElementById('modifiers-wrapper').style.opacity = '1';
+    
+    // NYTT: Lukk peerJS tilkoblingen hvis vi leaver
+    if(netPeer) {
+        netPeer.destroy();
+        netPeer = null;
+        netConnections = [];
+        myNetConnection = null;
+    }
+
+    updateLobbyUI();
+}
+
+function updateLobbyUI() {
+    for(let i=0; i<5; i++) {
+        let slot = document.getElementById('slot-'+i);
+        let dot = slot.querySelector('.slot-dot');
+        let name = slot.querySelector('.slot-name');
+        if(mpState.players[i]) {
+            slot.classList.add('filled');
+            dot.classList.add('active');
+            name.innerText = mpState.players[i].name;
+        } else {
+            slot.classList.remove('filled');
+            dot.classList.remove('active');
+            name.innerText = "";
+        }
+    }
+}
+
+function toggleSettings() {
+    let gear = document.getElementById('settings-btn');
+    let panel = document.getElementById('settings-panel');
+    if(gear.classList.contains('open')) {
+        gear.classList.remove('open');
+        panel.classList.remove('open');
+    } else {
+        gear.classList.add('open');
+        panel.classList.add('open');
+    }
+}
+
+function togglePanel() { 
+    if(!mpState.isHost && mpState.active) return;
+    const wrapper = document.getElementById('modifiers-wrapper');
+    const btn = document.getElementById('expand-btn');
+    if(wrapper.classList.contains('open')) { wrapper.classList.remove('open'); btn.innerHTML = '+'; } 
+    else { wrapper.classList.add('open'); btn.innerHTML = '-'; }
+}
+
+function setChaos(n) { chaos=(chaos===n)?0:n; [1,2,3,4].forEach(i=>document.getElementById('c'+i).className=(i===chaos?'active':'')); }
+function setBrightnessModifier(v) { fullBright=v; document.getElementById('b0').className=!v?'active':''; document.getElementById('b1').className=v?'active':''; }
+function setItemMadness(v) { itemMadness=v; document.getElementById('m0').className=!v?'active':''; document.getElementById('m1').className=v?'active':''; }
+function setTraps(n) { trapLevel=n; [0,1,2].forEach(i=>document.getElementById('t'+i).className=(i===n?'active':'')); }
+function setUMino(v) { uMinoMode=v; document.getElementById('u0').className=!v?'active':''; document.getElementById('u1').className=v?'active':''; }
+
+function simTouch(id, key) {
+    let el = document.getElementById(id);
+    const down = (e) => { e.preventDefault(); window.keys[key] = true; };
+    const up = (e) => { e.preventDefault(); window.keys[key] = false; };
+    el.addEventListener('mousedown', down);
+    el.addEventListener('mouseup', up);
+    el.addEventListener('mouseleave', up);
+    el.addEventListener('touchstart', down, {passive: false});
+    el.addEventListener('touchend', up, {passive: false});
+}
+
+function loop(now) {
+    update(now);
+    draw();
+    if(isRunning) requestAnimationFrame(loop);
+}
+
+function update(now) {
+    if(!isRunning) return;
+
+    // --- NY MULTIPLAYER OPPDATERING I SPILLOOP ---
+    if (mpState.active) {
+        if (mpState.isHost) {
+            // Hosten oppdaterer sin egen posisjon i listen
+            let hostPlayer = mpState.players.find(p => p.id === "host");
+            if (hostPlayer) {
+                hostPlayer.x = player.renderX;
+                hostPlayer.y = player.renderY;
+            }
+            // Hosten kringkaster alle posisjoner til klientene
+            broadcastState();
+        } else {
+            // Klienten sender sin posisjon til hosten
+            if (myNetConnection && myNetConnection.open) {
+                myNetConnection.send({ type: 'playerUpdate', x: player.renderX, y: player.renderY });
+            }
+        }
+    }
+    // ----------------------------------------------
+    
+    // Her skal resten av din ekte bevegelse/kollisjons-logikk ligge!
 }
 
 function draw() {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    ctx.save();
-    ctx.translate(canvas.width/2 - player.renderX, canvas.height/2 - player.renderY);
-
-    // Tegn vegger
-    ctx.fillStyle = "#222";
-    for(let y=0; y<grid.length; y++) {
-        for(let x=0; x<grid[y].length; x++) {
-            if(grid[y][x] === 1) ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
-        }
+    // Her ligger all din ekte tegne-logikk for labyrint osv!
+    
+    // --- NY MULTIPLAYER TEGNING AV ANDRE SPILLERE ---
+    if (mpState.active && isRunning) {
+        ctx.save();
+        // NB: Du må kanskje justere 'canvas.width/2 - player.renderX' biten 
+        // avhengig av hvordan kamera-offseten din er bygget opp i den fulle koden din.
+        ctx.translate(canvas.width/2 - player.renderX, canvas.height/2 - player.renderY);
+        
+        mpState.players.forEach(p => {
+            // Ikke tegn oss selv (den tegnes av din egen kode)
+            if ((mpState.isHost && p.id === "host") || (!mpState.isHost && p.id === minPlayerId)) return;
+            
+            // Tegn andre spillere (enkel blå firkant som eksempel)
+            ctx.fillStyle = "blue";
+            ctx.fillRect(p.x, p.y, tileSize, tileSize);
+            
+            // Tegn navn over dem
+            ctx.fillStyle = "white";
+            ctx.font = "10px Courier New";
+            ctx.fillText(p.name, p.x, p.y - 5);
+        });
+        ctx.restore();
     }
-
-    // Tegn deg selv
-    ctx.fillStyle = "#0f0";
-    ctx.fillRect(player.renderX + 5, player.renderY + 5, 30, 30);
-    ctx.fillStyle = "white";
-    ctx.fillText(player.name, player.renderX, player.renderY - 5);
-
-    // Tegn andre spillere
-    for (let id in mpState.players) {
-        let p = mpState.players[id];
-        ctx.fillStyle = "blue";
-        ctx.fillRect(p.x + 5, p.y + 5, 30, 30);
-        ctx.fillStyle = "white";
-        ctx.fillText(p.name, p.x, p.y - 5);
-    }
-
-    ctx.restore();
+    // ------------------------------------------------
 }
 
-function loop() {
-    update();
-    draw();
-    if(isRunning) setTimeout(() => requestAnimationFrame(loop), 100); // Litt delay for kontroll
+function start() {
+    isRunning = true;
+    document.getElementById("menu").style.display = "none";
+    requestAnimationFrame(loop);
 }
-
-function toggleSettings() { document.getElementById('settings-panel').classList.toggle('open'); }
-function togglePanel() { document.getElementById('modifiers-wrapper').classList.toggle('open'); }
 </script>
 </body>
 </html>
